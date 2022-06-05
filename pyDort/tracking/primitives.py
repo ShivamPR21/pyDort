@@ -84,13 +84,16 @@ class Pose2D(Pose1D):
     y : float
     theta : float
 
-    def __init__(self, x: float, y: float, theta: float) -> None:
+    def __init__(self, x: float, y: float, yaw: float) -> None:
         super().__init__(x)
 
-        self.y, self.theta = y, theta
+        self.y = y
+
+        # Rotation
+        self.yaw = yaw
 
     def __call__(self) -> np.ndarray:
-        return np.array([self.x, self.y, self.theta], dtype=np.float32)
+        return np.array([self.x, self.y, self.yaw], dtype=np.float32)
 
 class Dims2D(Dims1D):
     b : float
@@ -105,15 +108,17 @@ class Dims2D(Dims1D):
 
 class PoseDot2D(PoseDot1D):
     y_dot : float
-    theta_dot : float
 
-    def __init__(self, x_dot: float, y_dot: float, theta_dot: float) -> None:
+    def __init__(self, x_dot: float, y_dot: float, yaw_dot: float) -> None:
         super().__init__(x_dot)
 
-        self.y_dot, self.theta_dot = y_dot, theta_dot
+        self.y_dot = y_dot
+
+        # Rotation
+        self.yaw_dot = yaw_dot
 
     def __call__(self) -> np.ndarray:
-        return np.array([self.x_dot, self.y_dot, self.theta_dot], dtype=np.float32)
+        return np.array([self.x_dot, self.y_dot, self.yaw_dot], dtype=np.float32)
 
 class DimsDot2D(DimsDot1D):
     b_dot : float
@@ -151,13 +156,17 @@ class ObjectDot2D():
 class Pose3D(Pose2D):
     z : float
 
-    def __init__(self, x: float, y: float, z: float, theta: float) -> None:
-        super().__init__(x, y, theta)
+    def __init__(self, x: float, y: float, z: float, roll: float, pitch: float, yaw: float) -> None:
+        super().__init__(x, y)
 
         self.z = z
 
+        # Rotation
+        self.roll, self.pitch, self.yaw = roll, pitch, yaw
+
     def __call__(self) -> np.ndarray:
-        return np.array([self.x, self.y, self.z, self.theta], dtype=np.float32)
+        return np.array([self.x, self.y, self.z,
+                         self.roll, self.pitch, self.yaw], dtype=np.float32)
 
 class Dims3D(Dims2D):
     h : float
@@ -174,13 +183,17 @@ class Dims3D(Dims2D):
 class PoseDot3D(PoseDot2D):
     z_dot : float
 
-    def __init__(self, x_dot: float, y_dot: float, z_dot: float, theta_dot: float) -> None:
-        super().__init__(x_dot, y_dot, theta_dot)
+    def __init__(self, x_dot: float, y_dot: float, z_dot: float, roll_dot: float, pitch_dot: float, yaw_dot: float) -> None:
+        super().__init__(x_dot, y_dot)
 
         self.z_dot = z_dot
 
+        # Rotation
+        self.roll_dot, self.pitch_dot, self.yaw_dot = roll_dot, pitch_dot, yaw_dot
+
     def __call__(self) -> np.ndarray:
-        return np.array([self.x_dot, self.y_dot, self.z_dot, self.theta_dot], dtype=np.float32)
+        return np.array([self.x_dot, self.y_dot, self.z_dot,
+                         self.roll_dot, self.pitch_dot, self.yaw_dot], dtype=np.float32)
 
 
 class DimsDot3D(DimsDot2D):
@@ -203,7 +216,7 @@ class Object3D():
         self.pose, self.dims = pose, dims
 
     def __call__(self) -> np.ndarray:
-        return np.array([self.pose(), self.dims()], dtype=np.float32)
+        return np.array([*self.pose(), *self.dims()], dtype=np.float32)
 
 
 class ObjectDot3D():
@@ -214,4 +227,49 @@ class ObjectDot3D():
         self.pose_dot, self.dims_dot = pose_dot, dims_dot
 
     def __call__(self) -> np.ndarray:
-        return np.array([self.pose_dot(), self.dims_dot()], dtype=np.float32)
+        return np.array([*self.pose_dot(), *self.dims_dot()], dtype=np.float32)
+
+
+# Vehicle state
+class VehicleState():
+    pose : Pose2D
+    dims : Dims3D
+
+    def __init__(self, x: float, y: float, z: float, yaw: float, l:float, b: float, h: float) -> None:
+        self.pose = Pose2D(x, y, yaw)
+        self.dims = Dims3D(l, b, h)
+        self.pose.z = z
+
+    def __call__(self) -> np.ndarray:
+        out_arr = np.array([*self.pose(), self.pose.z, *self.dims()], dtype=np.float32)
+        out_arr[2], out_arr[3] = out_arr[3], out_arr[2]
+        return out_arr
+
+# Pedestrian state
+class PedestrianState():
+    pose : Pose2D
+    dims : Dims3D
+
+    def __init__(self, x: float, y: float, z: float, yaw: float, l:float, b: float, h: float) -> None:
+        self.pose = Pose2D(x, y, yaw)
+        self.dims = Dims3D(l, b, h)
+        self.pose.z = z
+
+    def __call__(self) -> np.ndarray:
+        out_arr = np.array([*self.pose(), self.pose.z, *self.dims()], dtype=np.float32)
+        out_arr[2], out_arr[3] = out_arr[3], out_arr[2]
+        return out_arr
+
+# Random object
+class RandomObjectState():
+    pose : Pose3D
+    dims : Dims3D
+
+    def __init__(self, x: float, y: float, z: float,
+                 roll: float, pitch: float, yaw: float,
+                 l:float, b: float, h: float) -> None:
+        self.pose = Pose3D(x, y, z, roll, pitch, yaw)
+        self.dims = Dims3D(l, b, h)
+
+    def __call__(self) -> np.ndarray:
+        return np.array([*self.pose(), *self.dims()], dtype=np.float32)

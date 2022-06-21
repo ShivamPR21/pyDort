@@ -15,70 +15,66 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
-from typing import Callable, float, int
+from enum import Enum
+from typing import Callable, Type, Union, float, int
 
 import numpy as np
 from sem.evolution import StateEvolution
-from sem.kalmanfilter import KalmanFilter
 
-from ..helpers import ModifiedQueue
-from .shapes import BoundingBox
-from .tracklet import Tracklet3D
+from ..helpers import Queue
+from .info import tracklets
+from .primitives import Primitives
+from .tracklet import Tracklet
+
+
+class TrackStatus(Enum):
+    Init = 1
+    Active = 2
+    Stale = 3
+    Missing = 4
 
 
 class Track3D:
 
     def __init__(self,
                 id : int = None,
+                obj_type : str = 'pedestrian-cv',
                 dt : float = 0.5,
-                observation : BoundingBox =
-                    {'center' : {'x' : 0.0, 'y' : 0.0, 'z' : 0.0},
-                    'shape' : {'l' : 0.0, 'b' : 0.0, 'h' : 0.0}},
-                max_tracklets : int = 20,
                 stale_lim : int = 5,
-                sem: Callable = KalmanFilter()) -> None:
+                cache_lim : int = 1000,
+                sem : Callable[..., Type[StateEvolution]] = None) -> None:
 
         assert(id)
         self.track_id = id
+        self.tracklet_class : Type[Primitives] = tracklets[obj_type]
         self.dt = dt
-        self.tracklets = ModifiedQueue(maxsize=max_tracklets)
-        assert(isinstance(sem, StateEvolution))
-        self.sem = sem
+        self.track = Queue(maxsize=cache_lim)
 
-        # Create initial tracklet
-        tracklet = Tracklet3D(tracklet = observation,
-                              observation = observation,
-                              x_covar = sem.state_covar(),
-                              z_covar = sem.obs_covar())
+        self.stale_lim = stale_lim
+        self.status = TrackStatus.Init
 
-        self.tracklets.put(tracklet)
-        self.setup_kf(tracklet)
         self.tracks_count = 0
         self.missed_frames = 0
-        self.stale_lim = stale_lim
-        self.stale = False
 
-    def predict(self) :
-        x , P = self.sem.predict()
-        self.tracklets.put(Tracklet3D(x_covar = P))
-        self.tracklets[-1].update_state_from_vec(np.squeeze(x))
-        return self.tracklets[-1]
+        self.sem : Type[StateEvolution] = sem
 
-    def update(self, observation : BoundingBox = None, z_covar = None) -> None:
-        if (observation is None) :
-            self.missed_frames += 1
-            if (self.missed_frames >= self.stale_lim):
-                self.stale = True
-            return
+    def init(self, tracklet: Type[Tracklet]):
+        info = tracklet.info
+        info['alpha'] = 0.1
+        self.sem = self.sem(len(tracklet.state_dims), len(tracklet.obs_dims), self.dt, info)
 
-        self.missed_frames = 0
-        self.tracks_count += 1
+    def propagate(self, **kwargs) -> None:
+        self.sem.predict(**kwargs)
+        tracklet = self.tracklet_class(
+            self.sem.state,
+            None,
+            self.sem.state_covar,
+            self.sem.obs_covar,
+            self.sem.process_noise)
+        self.track.put(tracklet)
 
-        # Create a new tracklet
-        self.tracklets[-1].update(observation=observation, z_covar=z_covar)
-
-        x, P = self.sem.update(self.tracklets[-1].observation, self.tracklets[-1].z_covar)
-        self.tracklets[-1].update(x_covar = P)
-        self.tracklets[-1].update_state_from_vec(np.squeeze(x))
-
-        return self.predict()
+    def update(self, observation: np.ndarray):
+        self.sem.update(observation)
+        self.track[-1].update(self.sem.state,
+                              observation,
+                              self.sem.state_covar)

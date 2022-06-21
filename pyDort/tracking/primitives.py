@@ -16,74 +16,66 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
 
-from typing import Tuple
+from typing import Any, Tuple
 
 import numpy as np
 
 
-# Single dimension
-class Pose1D():
-    x : float
+# Primitive base class
+class Primitives:
 
+    def __init__(self) -> None:
+        raise NotImplementedError
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        raise NotImplementedError
+
+# Single dimension
+class Pose1D(Primitives):
     def __init__(self, x: float) -> None:
         self.x = x
 
     def __call__(self) -> np.ndarray:
         return np.array([self.x], dtype=np.float32)
 
-class Dims1D():
-    l : float
-
+class Dims1D(Primitives):
     def __init__(self, l: float) -> None:
         self.l = l
 
     def __call__(self) -> np.ndarray:
         return np.array([self.l], dtype=np.float32)
 
-class PoseDot1D():
-    x_dot : float
-
+class PoseDot1D(Primitives):
     def __init__(self, x_dot: float) -> None:
         self.x_dot = x_dot
 
     def __call__(self) -> np.ndarray:
         return np.array([self.x_dot], dtype=np.float32)
 
-class DimsDot1D():
-    l_dot : float
-
+class DimsDot1D(Primitives):
     def __init__(self, l_dot: float) -> None:
         self.l_dot = l_dot
 
     def __call__(self) -> np.ndarray:
         return np.array([self.l_dot], dtype=np.float32)
 
-class Object1D():
-    pose : Pose1D
-    dims : Dims1D
-
+class Object1D(Primitives):
     def __init__(self, pose: Pose1D, dims: Dims1D) -> None:
         self.pose, self.dims = pose, dims
 
     def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
-        return self.pose(), self.dims()
+        return np.array([*self.pose(), *self.dims()], dtype=np.float32)
 
-class ObjectDot1D():
-    pose_dot : PoseDot1D
-    dims_dot : DimsDot1D
-
+class ObjectDot1D(Primitives):
     def __init__(self, pose_dot: PoseDot1D, dims_dot: DimsDot1D) -> None:
         self.pose_dot, self.dims_dot = pose_dot, dims_dot
 
     def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
-        return self.pose_dot(), self.dims_dot()
+        return np.array([*self.pose_dot(), *self.dims_dot()], dtype=np.float32)
 
 
 # 2D types
 class Pose2D(Pose1D):
-    y : float
-    theta : float
-
     def __init__(self, x: float, y: float, yaw: float) -> None:
         super().__init__(x)
 
@@ -96,8 +88,6 @@ class Pose2D(Pose1D):
         return np.array([self.x, self.y, self.yaw], dtype=np.float32)
 
 class Dims2D(Dims1D):
-    b : float
-
     def __init__(self, l: float, b: float) -> None:
         super().__init__(l)
 
@@ -107,8 +97,6 @@ class Dims2D(Dims1D):
         return np.array([self.l, self.b], dtype=np.float32)
 
 class PoseDot2D(PoseDot1D):
-    y_dot : float
-
     def __init__(self, x_dot: float, y_dot: float, yaw_dot: float) -> None:
         super().__init__(x_dot)
 
@@ -121,8 +109,6 @@ class PoseDot2D(PoseDot1D):
         return np.array([self.x_dot, self.y_dot, self.yaw_dot], dtype=np.float32)
 
 class DimsDot2D(DimsDot1D):
-    b_dot : float
-
     def __init__(self, l_dot: float, b_dot: float) -> None:
         super().__init__(l_dot)
 
@@ -131,31 +117,23 @@ class DimsDot2D(DimsDot1D):
     def __call__(self) -> np.ndarray:
         return np.array([self.l_dot, self.b_dot], dtype=np.float32)
 
-class Object2D():
-    pose : Pose2D
-    dims : Dims2D
-
+class Object2D(Primitives):
     def __init__(self, pose: Pose2D, dims: Dims2D) -> None:
         self.pose, self.dims = pose, dims
 
     def __call__(self) -> np.ndarray:
-        return np.concatenate((self.pose(), self.dims()))
+        return np.array([*self.pose(), *self.dims()], dtype=np.float32)
 
 
-class ObjectDot2D():
-    pose_dot : PoseDot2D
-    dims_dot : DimsDot2D
-
+class ObjectDot2D(Primitives):
     def __init__(self, pose_dot: PoseDot2D, dims_dot: DimsDot2D) -> None:
         self.pose_dot, self.dims_dot = pose_dot, dims_dot
 
     def __call__(self) -> np.ndarray:
-        return np.concatenate((self.pose_dot(), self.dims_dot()))
+        return np.array([*self.pose_dot(), *self.dims_dot()], dtype=np.float32)
 
 # 3D types
 class Pose3D(Pose2D):
-    z : float
-
     def __init__(self, x: float, y: float, z: float, roll: float, pitch: float, yaw: float) -> None:
         super().__init__(x, y)
 
@@ -169,8 +147,6 @@ class Pose3D(Pose2D):
                          self.roll, self.pitch, self.yaw], dtype=np.float32)
 
 class Dims3D(Dims2D):
-    h : float
-
     def __init__(self, l: float, b: float, h: float) -> None:
         super().__init__(l, b)
 
@@ -181,8 +157,6 @@ class Dims3D(Dims2D):
 
 
 class PoseDot3D(PoseDot2D):
-    z_dot : float
-
     def __init__(self, x_dot: float, y_dot: float, z_dot: float, roll_dot: float, pitch_dot: float, yaw_dot: float) -> None:
         super().__init__(x_dot, y_dot)
 
@@ -197,8 +171,6 @@ class PoseDot3D(PoseDot2D):
 
 
 class DimsDot3D(DimsDot2D):
-    h_dot : float
-
     def __init__(self, l_dot: float, b_dot: float, h_dot: float) -> None:
         super().__init__(l_dot, b_dot)
 
@@ -208,10 +180,7 @@ class DimsDot3D(DimsDot2D):
         return np.array([self.l_dot, self.b_dot, self.h_dot], dtype=np.float32)
 
 
-class Object3D():
-    pose : Pose3D
-    dims : Dims3D
-
+class Object3D(Primitives):
     def __init__(self, pose: Pose3D, dims: Dims3D) -> None:
         self.pose, self.dims = pose, dims
 
@@ -219,57 +188,9 @@ class Object3D():
         return np.array([*self.pose(), *self.dims()], dtype=np.float32)
 
 
-class ObjectDot3D():
-    pose_dot : PoseDot3D
-    dims_dot : DimsDot3D
-
+class ObjectDot3D(Primitives):
     def __init__(self, pose_dot: PoseDot3D, dims_dot: DimsDot3D) -> None:
         self.pose_dot, self.dims_dot = pose_dot, dims_dot
 
     def __call__(self) -> np.ndarray:
         return np.array([*self.pose_dot(), *self.dims_dot()], dtype=np.float32)
-
-
-# Vehicle state
-class VehicleState():
-    pose : Pose2D
-    dims : Dims3D
-
-    def __init__(self, x: float, y: float, z: float, yaw: float, l:float, b: float, h: float) -> None:
-        self.pose = Pose2D(x, y, yaw)
-        self.dims = Dims3D(l, b, h)
-        self.pose.z = z
-
-    def __call__(self) -> np.ndarray:
-        out_arr = np.array([*self.pose(), self.pose.z, *self.dims()], dtype=np.float32)
-        out_arr[2], out_arr[3] = out_arr[3], out_arr[2]
-        return out_arr
-
-# Pedestrian state
-class PedestrianState():
-    pose : Pose2D
-    dims : Dims3D
-
-    def __init__(self, x: float, y: float, z: float, yaw: float, l:float, b: float, h: float) -> None:
-        self.pose = Pose2D(x, y, yaw)
-        self.dims = Dims3D(l, b, h)
-        self.pose.z = z
-
-    def __call__(self) -> np.ndarray:
-        out_arr = np.array([*self.pose(), self.pose.z, *self.dims()], dtype=np.float32)
-        out_arr[2], out_arr[3] = out_arr[3], out_arr[2]
-        return out_arr
-
-# Random object
-class RandomObjectState():
-    pose : Pose3D
-    dims : Dims3D
-
-    def __init__(self, x: float, y: float, z: float,
-                 roll: float, pitch: float, yaw: float,
-                 l:float, b: float, h: float) -> None:
-        self.pose = Pose3D(x, y, z, roll, pitch, yaw)
-        self.dims = Dims3D(l, b, h)
-
-    def __call__(self) -> np.ndarray:
-        return np.array([*self.pose(), *self.dims()], dtype=np.float32)

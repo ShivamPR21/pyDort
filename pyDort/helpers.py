@@ -15,28 +15,77 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
-from queue import Queue
-from typing import Any, bool
+from typing import Any
 
 
-class ModifiedQueue(Queue):
+class Queue:
 
-    def __init__(self, maxsize: int = 10, item = None) -> None:
-        super().__init__(maxsize=maxsize)
-        if (item) : self.put(item)
+    def __init__(self, maxsize: int = -1, item : Any = None) -> None:
+        self.maxsize = maxsize
+        self._data = []
+        if (item is not None) : self.put(item)
 
-    def put(self, item) -> bool:
-        if (super().full()) :
-            super().get()
-        super().put(item)
+    def put(self, item : Any) -> None:
+        if self.full:
+            self._data.pop(0)
+        self._data.append(item)
 
-    def get(self) :
-        if (super().empty()):
+    def get(self) -> Any:
+        if self.empty:
             return None
-        super().get()
+        return self._data.pop(0)
+
+    @property
+    def empty(self):
+        return not len(self._data) > 0
+
+    @property
+    def full(self):
+        return (not self.maxsize <= 0) and (len(self._data) == self.maxsize)
 
     def __getitem__(self, key : int) -> Any:
-        if (super().qsize() > abs(key)):
-            return super()[key]
+        if key < 0: key = len(self._data) + key
+
+        if (len(self._data) > key and key >= 0):
+            return self._data[key]
 
         return None
+
+    def __len__(self):
+        return len(self._data)
+
+
+if __name__ == "__main__":
+
+    class TestData:
+        def __init__(self, it) -> None:
+            self.s = it
+
+        def update(self, d) -> None:
+            self.s = d
+
+    # General test 1
+    # Test 1
+    q = Queue(5, 0)
+    for i in range(1, 5):
+        q.put(i)
+
+    assert(q.full)
+
+    assert(q._data == [i for i in range(5)])
+
+    # test 2
+    q.put(6)
+    assert(q[-1] == 6)
+
+    #test 3
+    assert(q.get() == 1)
+    assert(q[0] == 2)
+
+    # Specific test 1
+    q = Queue(5, TestData(0))
+    for i in range(1, 5):
+        q.put(TestData(i))
+
+    q[-1].update(10)
+    assert(q[-1].s == 10)

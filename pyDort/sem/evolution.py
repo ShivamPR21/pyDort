@@ -22,20 +22,29 @@ class StateEvolution:
 
     def __init__(self,
                  state_dim : int = 3,
-                 obs_dim : int = 3) -> None:
+                 obs_dim : int = 3,
+                 dt: float = None) -> None:
         self.state_dim, self.obs_dim = state_dim, obs_dim
+        self.dt = dt
 
-    def predict(self) -> Any:
-        pass
+    def propagate(self) -> Any:
+        raise NotImplementedError
 
     def update(self) -> Any:
-        pass
+        raise NotImplementedError
 
+    @property
+    def state(self) -> Any:
+        raise NotImplementedError
+
+    @property
     def state_covar(self) -> Any:
-        pass
+        raise NotImplementedError
 
+    @property
     def obs_covar(self) -> Any:
-        pass
+        raise NotImplementedError
 
+    @property
     def process_noise(self) -> Any:
-        pass
+        raise NotImplementedError

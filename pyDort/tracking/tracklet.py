@@ -15,209 +15,300 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
+from typing import Any, Dict, Optional, Type, Union
+
 import numpy as np
 
-from .shapes import (
-    BoundingBox,
-    BoundingBoxVelocity,
-    BoundingRectangle,
-    BoundingRectangleVelocity,
-    SingleDimCenter,
-    SingleDimVelocity,
-)
+from .object_primitives import PedestrianStateCV, VehicleStateCTRV, VehicleStateCV
+from .primitives import Primitives
+from .shapes import BoxCorners3D, BoxYaw3D
 
 
-class Tracklet1D:
+class Tracklet:
 
     def __init__(self,
-                 tracklet : SingleDimCenter =
-                    {'center' : {'x' : 0.0},
-                    'shape' : {'l' : 0.0}},
-                 velocity : SingleDimVelocity =
-                    {'center_dot' : {'x_dot' : 0.0},
-                    'shape_dot' : {'l_dot' : 0.0}},
-                 observation : SingleDimCenter =
-                    {'center' : {'x' : 0.0},
-                    'shape' : {'l' : 0.0}},
-                 covar = np.eye(4)) -> None:
-        """Tracklet1D stores the data about object's location and movement at specific instance in time.
+                 state: Optional[Union[Type[Primitives], np.ndarray]] = None,
+                 observation: Optional[Union[Type[Primitives], np.ndarray]] = None,
+                 x_covar: Optional[np.ndarray] = None,
+                 z_covar: Optional[np.ndarray] = None,
+                 Q: Optional[np.ndarray] = None) -> None:
+        """_summary_
 
-        Args:
-            tracklet (BoundingBox, optional): [tracklet position, and shape]. Defaults to {'center' : {'x' : 0.0}, 'shape' : {'l' : 0.0}}.
-            velocity (BoundingBox, optional): [tracklet state change rate]. Defaults to {'center_dot' : {'x_dot' : 0.0}, 'shape_dot' : {'l_dot' : 0.0}}.
-            observation (BoundingBox, optional): [most recent associated bounding box]. Defaults to {'center' : {'x' : 0.0}, 'shape' : {'l' : 0.0}}.
-            covar (numpy matrix, optional): [covariance at the tracklet]. Defaults to np.eye(4).
+        Parameters
+        ----------
+        state : Optional[Union[Type[Primitives], np.ndarray]], optional
+            _description_, by default None
+        observation : Optional[Union[Type[Primitives], np.ndarray]], optional
+            _description_, by default None
+        x_covar : Optional[np.ndarray], optional
+            _description_, by default None
+        z_covar : Optional[np.ndarray], optional
+            _description_, by default None
         """
-        self.tracklet = tracklet
-        self.velocity = velocity
+        self._state : np.ndarray = state() if isinstance(state, Primitives) else state
 
-        self.observation = observation
+        self._observation : np.ndarray = observation() if isinstance(observation, Primitives) else observation
 
-        assert(covar.shape == (4, 4))
-        self.covar = covar
+        self._x_covar = x_covar
+        self._z_covar = z_covar
+        self._Q = Q
 
     def update(self,
-                tracklet : SingleDimCenter = None,
-                velocity : SingleDimVelocity = None,
-                observation : SingleDimCenter = None,
-                covar = None) -> None:
-        """Updates the requested state realted to tracklet.
+                state : Optional[Union[Type[Primitives], np.ndarray]] = None,
+                observation : Optional[Union[Type[Primitives], np.ndarray]] = None,
+                x_covar : Optional[np.ndarray] = None,
+                z_covar : Optional[np.ndarray] = None,
+                Q : Optional[np.ndarray] = None) -> None:
+        """_summary_
 
-        Args:
-            tracklet (SingleDimCenter, optional): [tracklet position, and shape]. Defaults to None.
-            velocity (SingleDimVelocity, optional): [tracklet state change rate]. Defaults to None.
-            observation (SingleDimCenter, optional): [most recent associated bounding box]. Defaults to None.
-            covar ([type], optional): [covariance at the tracklet]. Defaults to None.
+        Parameters
+        ----------
+        state : Optional[Union[Type[Primitives], np.ndarray]], optional
+            _description_, by default None
+        observation : Optional[Union[Type[Primitives], np.ndarray]], optional
+            _description_, by default None
+        x_covar : Optional[np.ndarray], optional
+            _description_, by default None
+        z_covar : Optional[np.ndarray], optional
+            _description_, by default None
         """
-        if (tracklet) : self.tracklet = tracklet
-        if (velocity) : self.velocity = velocity
-        if (observation) : self.observation = observation
-        if (covar) :
-            assert(covar.shape == (4, 4))
-            self.covar = covar
+        if (state) : self._state = state
+        if (observation) : self._observation = observation
+        if (x_covar) : self._x_covar = x_covar
+        if (z_covar) : self._z_covar = z_covar
+        if (Q) : self._Q = Q
 
-    def state(self):
-        return np.array([self.tracklet['x'],
-                        self.tracklet['l'],
-                        self.velocity['x_dot'],
-                        self.velocity['l_dot']], dtype=np.float32)
+    @property
+    def state(self) -> np.ndarray:
+        return self._state
+
+    @property
+    def observation(self) -> np.ndarray:
+        return self._observation
+
+    @property
+    def state_dims(self) -> np.ndarray:
+        return len(self._state)
+
+    @property
+    def obs_dims(self) -> np.ndarray:
+        return len(self._observation)
+
+    @property
+    def info(self) -> Dict[str, Any]:
+        info = {
+            'f': self.f,
+            'h': self.h,
+            'phi': self.phi,
+            'phi_inv': self.phi_inv,
+            'Q': self._Q,
+            'R': self._z_covar,
+            'state0': self._state,
+            'P0': self._x_covar
+        }
+        return info
+
+    @classmethod
+    def f(cls, state : Union[Type[Primitives], np.ndarray], omega : np.ndarray, w : np.ndarray, dt : float) -> np.ndarray:
+        _new_state = state() if isinstance(state, Primitives) else state # Identity state transition
+        return _new_state
+
+    @classmethod
+    def h(cls, state: Union[Type[Primitives], np.ndarray]) -> np.ndarray:
+        _pred_observation = state() if isinstance(state, Primitives) else state # Simplest and complete observation model
+        return _pred_observation
+
+    @classmethod
+    def phi(cls, state : Union[Type[Primitives], np.ndarray], xi : np.ndarray) -> np.ndarray:
+        _new_state = state() + xi.diagonal()
+        return _new_state
+
+    @classmethod
+    def phi_inv(cls, state : Union[Type[Primitives], np.ndarray], hat_state : Union[Type[Primitives], np.ndarray]) -> np.ndarray:
+        if isinstance(state, Primitives): state = state()
+        if isinstance(hat_state, Primitives): hat_state = hat_state()
+
+        xi = np.diag(np.square(state - hat_state))
+
+        return xi
 
 
-class Tracklet2D:
+class TrackletVehicleCV(Tracklet):
 
     def __init__(self,
-                 tracklet : BoundingRectangle =
-                    {'center' : {'x' : 0.0, 'y' : 0.0},
-                    'shape' : {'l' : 0.0, 'b' : 0.0}},
-                 velocity : BoundingRectangleVelocity =
-                    {'center_dot' : {'x_dot' : 0.0, 'y_dot' : 0.0},
-                    'shape_dot' : {'l_dot' : 0.0, 'b_dot' : 0.0}},
-                 observation : BoundingRectangle =
-                    {'center' : {'x' : 0.0, 'y' : 0.0},
-                    'shape' : {'l' : 0.0, 'b' : 0.0}},
-                 covar = np.eye(8)) -> None:
-        """Tracklet2D stores the data about object's location and movement at specific instance in time.
-
-        Args:
-            tracklet (BoundingRectangle, optional): [tracklet position, and shape]. Defaults to {'center' : {'x' : 0.0, 'y' : 0.0}, 'shape' : {'l' : 0.0, 'b' : 0.0}}.
-            velocity (BoundingRectangleVelocity, optional): [tracklet state change rate]. Defaults to {'center_dot' : {'x_dot' : 0.0, 'y_dot' : 0.0}, 'shape_dot' : {'l_dot' : 0.0, 'b_dot' : 0.0}}.
-            observation (BoundingRectangle, optional): [most recent associated bounding box]. Defaults to {'center' : {'x' : 0.0, 'y' : 0.0}, 'shape' : {'l' : 0.0, 'b' : 0.0}}.
-            covar (numpy matrix, optional): [covariance at the tracklet]. Defaults to np.eye(8).
-        """
-        self.tracklet = tracklet
-        self.velocity = velocity
-
-        self.observation = observation
-
-        assert(covar.shape == (8, 8))
-        self.covar = covar
+                 state: Optional[Union[Type[VehicleStateCV], np.ndarray]] = None,
+                 observation: Optional[Union[Type[BoxYaw3D], np.ndarray]] = None,
+                 x_covar: Optional[np.ndarray] = None,
+                 z_covar: Optional[np.ndarray] = None) -> None:
+        super().__init__(state, observation, x_covar, z_covar)
 
     def update(self,
-                tracklet : BoundingRectangle = None,
-                velocity : BoundingRectangleVelocity = None,
-                observation : BoundingRectangle = None,
-                covar = None) -> None:
-        """Updates the requested state realted to tracklet.
+               state: Optional[Union[Type[Primitives], np.ndarray]] = None,
+               observation: Optional[Union[Type[Primitives], np.ndarray]] = None,
+               x_covar: Optional[np.ndarray] = None, z_covar: Optional[np.ndarray] = None) -> None:
+        return super().update(state, observation, x_covar, z_covar)
 
-        Args:
-            tracklet (BoundingRectangle, optional): [tracklet position, and shape]. Defaults to None.
-            velocity (BoundingRectangleVelocity, optional): [tracklet state change rate]. Defaults to None.
-            observation (BoundingRectangle, optional): [most recent associated bounding box]. Defaults to None.
-            covar ([type], optional): [covariance at the tracklet]. Defaults to None.
-        """
-        if (tracklet) : self.tracklet = tracklet
-        if (velocity) : self.velocity = velocity
-        if (observation) : self.observation = observation
-        if (covar) :
-            assert(covar.shape == (8, 8))
-            self.covar = covar
+    @classmethod
+    def f(cls,
+          state: Union[Type[VehicleStateCV], np.ndarray],
+          omega: np.ndarray, w: np.ndarray, dt: float) -> np.ndarray:
+        # no force is exerted
+        _new_state = state() if isinstance(state, Primitives) else state
+        v, v_z, yaw = _new_state[[7, 8, 3]]
 
-    def state(self):
-        return np.array([self.tracklet['x'],
-                        self.tracklet['y'],
-                        self.tracklet['l'],
-                        self.tracklet['b'],
-                        self.velocity['x_dot'],
-                        self.velocity['y_dot'],
-                        self.velocity['l_dot'],
-                        self.velocity['b_dot']], dtype=np.float32)
+        _new_state += np.array([
+            v*dt*np.cos(yaw), # Cx
+            v*dt*np.sin(yaw), # Cy
+            v_z*dt, # Cz
+            0, # yaw
+            0, # l
+            0, # b
+            0, # h
+            0, # v
+            0 # v_z
+        ])
 
-class Tracklet3D:
+        _new_state += w
+
+        return _new_state
+
+    @classmethod
+    def h(cls,
+          state: Union[Type[VehicleStateCV], np.ndarray]) -> np.ndarray:
+        _pred_observation = state() if isinstance(state, Primitives) else state
+        _pred_observation = _pred_observation[[0, 1, 2, 4, 5, 6]] # x, y, z, l, b, h
+        return _pred_observation
+
+    @classmethod
+    def phi(cls,
+            state: Union[Type[VehicleStateCV], np.ndarray], xi: np.ndarray) -> np.ndarray:
+        _new_state = state + xi #TODO: Check for validity @ShivamPR21
+        return _new_state
+
+    @classmethod
+    def phi_inv(cls,
+                state: Union[Type[Primitives], np.ndarray],
+                hat_state: Union[Type[Primitives], np.ndarray]) -> np.ndarray:
+        xi = state - hat_state #TODO: Check for validity @ShivamPR21
+        return xi
+
+
+class TrackletPedestrianCV(Tracklet):
 
     def __init__(self,
-                 tracklet : BoundingBox =
-                    {'center' : {'x' : 0.0, 'y' : 0.0, 'z' : 0.0},
-                    'shape' : {'l' : 0.0, 'b' : 0.0, 'h' : 0.0}},
-                 velocity : BoundingBoxVelocity =
-                    {'center_dot' : {'x_dot' : 0.0, 'y_dot' : 0.0, 'z_dot' : 0.0},
-                    'shape_dot' : {'l_dot' : 0.0, 'b_dot' : 0.0, 'h_dot' : 0.0}},
-                 observation : BoundingBox =
-                    {'center' : {'x' : 0.0, 'y' : 0.0, 'z' : 0.0},
-                    'shape' : {'l' : 0.0, 'b' : 0.0, 'h' : 0.0}},
-                 x_covar = np.eye(12),
-                 z_covar = np.eye(6)) -> None:
-        """Tracklet3D stores the data about object's location and movement at specific instance in time.
-
-        Args:
-            tracklet (BoundingBox, optional): [tracklet position, and shape]. Defaults to {'center' : {'x' : 0.0, 'y' : 0.0, 'z' : 0.0}, 'shape' : {'l' : 0.0, 'b' : 0.0, 'h' : 0.0}}.
-            velocity (BoundingBox, optional): [tracklet state change rate]. Defaults to {'center_dot' : {'x_dot' : 0.0, 'y_dot' : 0.0, 'z_dot' : 0.0}, 'shape_dot' : {'l_dot' : 0.0, 'b_dot' : 0.0, 'h_dot' : 0.0}}.
-            observation (BoundingBox, optional): [most recent associated bounding box]. Defaults to {'center' : {'x' : 0.0, 'y' : 0.0, 'z' : 0.0}, 'shape' : {'l' : 0.0, 'b' : 0.0, 'h' : 0.0}}.
-            covar (numpy matrix, optional): [covariance at the tracklet]. Defaults to np.eye(12).
-        """
-        self.tracklet = tracklet
-        self.velocity = velocity
-
-        self.observation = observation
-
-        assert(x_covar.shape == (12, 12))
-        self.x_covar = x_covar
-
-        assert(z_covar.shape == (6, 6))
-        self.z_covar = z_covar
+                 state: Optional[Union[Type[PedestrianStateCV], np.ndarray]] = None,
+                 observation: Optional[Union[Type[BoxYaw3D], np.ndarray]] = None,
+                 x_covar: Optional[np.ndarray] = None,
+                 z_covar: Optional[np.ndarray] = None) -> None:
+        super().__init__(state, observation, x_covar, z_covar)
 
     def update(self,
-                tracklet : BoundingBox = None,
-                velocity : BoundingBox = None,
-                observation : BoundingBox = None,
-                x_covar = None,
-                z_covar = None) -> None:
-        """Updates the requested state realted to tracklet.
+               state: Optional[Union[Type[Primitives], np.ndarray]] = None,
+               observation: Optional[Union[Type[Primitives], np.ndarray]] = None,
+               x_covar: Optional[np.ndarray] = None, z_covar: Optional[np.ndarray] = None) -> None:
+        return super().update(state, observation, x_covar, z_covar)
 
-        Args:
-            tracklet (BoundingBox, optional): [tracklet position, and shape]. Defaults to None.
-            velocity (BoundingBox, optional): [tracklet state change rate]. Defaults to None.
-            observation (BoundingBox, optional): [most recent associated bounding box]. Defaults to None.
-            covar ([type], optional): [covariance at the tracklet]. Defaults to None.
-        """
-        if (tracklet) : self.tracklet = tracklet
-        if (velocity) : self.velocity = velocity
-        if (observation) : self.observation = observation
-        if (x_covar) :
-            assert(x_covar.shape == (12, 12))
-            self.x_covar = x_covar
-        if (z_covar) :
-            assert(z_covar.shape == (6, 6))
-            self.z_covar = z_covar
+    @classmethod
+    def f(cls,
+          state: Union[Type[VehicleStateCV], np.ndarray],
+          omega: np.ndarray, w: np.ndarray, dt: float) -> np.ndarray:
+        # no force is exerted
+        _new_state = state() if isinstance(state, Primitives) else state
+        v, v_z, yaw = _new_state[[7, 8, 3]]
 
-    def state(self):
-        return np.array([self.tracklet['x'],
-                        self.tracklet['y'],
-                        self.tracklet['z'],
-                        self.tracklet['l'],
-                        self.tracklet['b'],
-                        self.tracklet['h'],
-                        self.velocity['x_dot'],
-                        self.velocity['y_dot'],
-                        self.velocity['z_dot'],
-                        self.velocity['l_dot'],
-                        self.velocity['b_dot'],
-                        self.velocity['h_dot']], dtype=np.float32)
+        _new_state += np.array([
+            v*dt*np.cos(yaw), # Cx
+            v*dt*np.sin(yaw), # Cy
+            v_z*dt, # Cz
+            0, # yaw
+            0, # l
+            0, # b
+            0, # h
+            0, # v
+            0 # v_z
+        ])
 
-    def update_state_from_vec(self, vec) -> None:
-        assert(len(vec) == 12)
+        _new_state += w
 
-        self.tracklet = {'center' : {'x' : vec[0], 'y' : vec[1], 'z' : vec[2]},
-                        'shape' : {'l' : vec[3], 'b' : vec[4], 'h' : vec[5]}}
+        return _new_state
 
-        self.velocity = {'center_dot' : {'x_dot' : vec[6], 'y_dot' : vec[7], 'z_dot' : vec[8]},
-                        'shape_dot' : {'l_dot' : vec[9], 'b_dot' : vec[10], 'h_dot' : vec[11]}}
+    @classmethod
+    def h(cls,
+          state: Union[Type[VehicleStateCV], np.ndarray]) -> np.ndarray:
+        _pred_observation = state() if isinstance(state, Primitives) else state
+        _pred_observation = _pred_observation[[0, 1, 2, 4, 5, 6]] # x, y, z, l, b, h
+        return _pred_observation
+
+    @classmethod
+    def phi(cls,
+            state: Union[Type[VehicleStateCV], np.ndarray], xi: np.ndarray) -> np.ndarray:
+        _new_state = state + xi #TODO: Check for validity @ShivamPR21
+        return _new_state
+
+    @classmethod
+    def phi_inv(cls,
+                state: Union[Type[Primitives], np.ndarray],
+                hat_state: Union[Type[Primitives], np.ndarray]) -> np.ndarray:
+        xi = state - hat_state #TODO: Check for validity @ShivamPR21
+        return xi
+
+
+class TrackletVehicleCTRV(Tracklet):
+
+    def __init__(self,
+                 state: Optional[Union[Type[VehicleStateCTRV], np.ndarray]] = None,
+                 observation: Optional[Union[Type[BoxYaw3D], np.ndarray]] = None,
+                 x_covar: Optional[np.ndarray] = None,
+                 z_covar: Optional[np.ndarray] = None) -> None:
+        super().__init__(state, observation, x_covar, z_covar)
+
+    def update(self,
+               state: Optional[Union[Type[Primitives], np.ndarray]] = None,
+               observation: Optional[Union[Type[Primitives], np.ndarray]] = None,
+               x_covar: Optional[np.ndarray] = None, z_covar: Optional[np.ndarray] = None) -> None:
+        return super().update(state, observation, x_covar, z_covar)
+
+    @classmethod
+    def f(cls,
+          state: Union[Type[VehicleStateCV], np.ndarray],
+          omega: np.ndarray, w: np.ndarray, dt: float) -> np.ndarray:
+        # no force is exerted
+        _new_state = state() if isinstance(state, Primitives) else state
+        v, v_z, yaw, psi_dot = _new_state[[7, 8, 3, 9]]
+
+        _new_state += np.array([
+            v*(np.sin(yaw + dt*psi_dot) - np.sin(yaw))/psi_dot, # Cx
+            v*(np.cos(yaw) - np.cos(yaw + dt*psi_dot))/psi_dot, # Cy
+            v_z*dt, # Cz
+            psi_dot*dt, # yaw
+            0, # l
+            0, # b
+            0, # h
+            0, # v
+            0, # v_z
+            0 # psi_dot
+        ])
+
+        _new_state += w
+
+        return _new_state
+
+    @classmethod
+    def h(cls,
+          state: Union[Type[VehicleStateCV], np.ndarray]) -> np.ndarray:
+        _pred_observation = state() if isinstance(state, Primitives) else state
+        _pred_observation = _pred_observation[[0, 1, 2, 4, 5, 6]] # x, y, z, l, b, h
+        return _pred_observation
+
+    @classmethod
+    def phi(cls,
+            state: Union[Type[VehicleStateCV], np.ndarray], xi: np.ndarray) -> np.ndarray:
+        _new_state = state + xi #TODO: Check for validity @ShivamPR21
+        return _new_state
+
+    @classmethod
+    def phi_inv(cls,
+                state: Union[Type[Primitives], np.ndarray],
+                hat_state: Union[Type[Primitives], np.ndarray]) -> np.ndarray:
+        xi = state - hat_state #TODO: Check for validity @ShivamPR21
+        return xi

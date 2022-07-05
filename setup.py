@@ -19,7 +19,7 @@ setup(
     license = "AGPLv3",
     keywords = "DeepLearning Pytorch Modules",
     url = "https://github.com/ShivamPR21/pyDort.git",
-    packages=['pyDort'],
+    packages=['pyDort', 'pyDort.sem', 'pyDort.tracking', 'pyDort.representation'],
     long_description=read('README.md'),
     classifiers=[
         "Development Status :: Alpha",

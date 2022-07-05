@@ -15,19 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
-from enum import Enum
-from typing import Any, Callable, Optional, Type, Union
+from typing import Any, Dict, Optional
 
 import numpy as np
 import ukfm
 
 from .evolution import StateEvolution
-
-
-class SemStatus(Enum):
-    Init = 1
-    Propagated = 2
-    Updated = 3
 
 
 class UKF(StateEvolution):
@@ -36,7 +29,7 @@ class UKF(StateEvolution):
                  state_dim: int = 3,
                  obs_dim: int = 3,
                  dt: float = None,
-                 **kwargs) -> None:
+                 kwargs: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(state_dim, obs_dim, dt)
 
         self.ukf = ukfm.UKF(kwargs['f'],
@@ -49,20 +42,18 @@ class UKF(StateEvolution):
                             kwargs['state0'],
                             kwargs['P0'])
 
-        self.status = SemStatus.Init
-
     def propagate(self, **kwargs) -> None:
         dt = self.dt
         if 'dt' in kwargs: dt = kwargs['dt']
         assert(dt is not None)
-        if 'omega' in kwargs: omega = kwargs['omega']
+        omega = kwargs['omega'] if 'omega' in kwargs else None
 
         self.ukf.propagation(omega, dt)
-        self.status = SemStatus.Propagated
+        super().propagate()
 
     def update(self, observation: np.ndarray) -> None:
         self.ukf.update(observation)
-        self.status = SemStatus.Updated
+        super().update()
 
     @property
     def state(self) -> Any:

@@ -15,7 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
-from typing import Any
+import json
+import os
+import uuid
+from pathlib import Path
+from typing import Any, Dict, Union
+
+import numpy as np
 
 
 class Queue:
@@ -54,6 +60,60 @@ class Queue:
     def __len__(self):
         return len(self._data)
 
+
+class UUIDGeneration():
+    def __init__(self):
+        self.mapping = {}
+    def get_uuid(self,seed):
+        if seed not in self.mapping:
+            self.mapping[seed] = uuid.uuid4().hex
+        return self.mapping[seed]
+uuid_gen = UUIDGeneration()
+
+def check_mkdir(dirpath):
+    """ """
+    if not Path(dirpath).exists():
+        os.makedirs(dirpath, exist_ok=True)
+
+def read_json_file(fpath: str):
+    """
+    Args:
+        fpath: string, representing file path
+    """
+    with open(fpath, 'rb') as f:
+        json_data = json.load(f)
+    return json_data
+
+def save_json_dict(json_fpath: Union[str, "os.PathLike[str]"], dictionary: Dict[Any, Any]) -> None:
+    """Save a Python dictionary to a JSON file.
+    Args:
+        json_fpath: Path to file to create.
+        dictionary: Python dictionary to be serialized.
+    """
+    with open(json_fpath, "w") as f:
+        json.dump(dictionary, f)
+
+def wrap_angle(angles: np.ndarray, period: float = np.pi) -> np.ndarray:
+    """Map angles (in radians) from domain [-∞, ∞] to [0, π). This function is
+        the inverse of `np.unwrap`.
+
+    Returns:
+        Angles (in radians) mapped to the interval [0, π).
+    """
+
+    # Map angles to [0, ∞].
+    angles = np.abs(angles)
+
+    # Calculate floor division and remainder simultaneously.
+    divs, mods = np.divmod(angles, period)
+
+    # Select angles which exceed specified period.
+    angle_complement_mask = np.nonzero(divs)
+
+    # Take set complement of `mods` w.r.t. the set [0, π].
+    # `mods` must be nonzero, thus the image is the interval [0, π).
+    angles[angle_complement_mask] = period - mods[angle_complement_mask]
+    return angles
 
 if __name__ == "__main__":
 

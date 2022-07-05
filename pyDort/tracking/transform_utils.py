@@ -177,7 +177,36 @@ def convert_3dbox_to_8corner(bbox3d_input: np.ndarray) -> np.ndarray:
     corners_3d_ego_fr = egovehicle_SE3_object.transform_point_cloud(corners_3d_obj_fr)
     return corners_3d_ego_fr
 
+def yaw_from_bbox_corners(det_corners: np.ndarray) -> float:
+    """
+    Use basic trigonometry on cuboid to get orientation angle.
+        Args:
+        -   det_corners: corners of bounding box
+        Returns:
+        -   yaw
+    """
+    p1 = det_corners[1]
+    p5 = det_corners[5]
+    dy = p1[1] - p5[1]
+    dx = p1[0] - p5[0]
+    # the orientation angle of the car
+    yaw = np.arctan2(dy, dx)
+    return yaw
 
+def bbox_3d_from_8corners(det_corners:np.ndarray, dims:np.ndarray) -> np.ndarray:
+    ego_xyz = np.mean(det_corners, axis=0)
+
+    yaw = yaw_from_bbox_corners(det_corners)
+    bbox = np.array([ego_xyz[0], ego_xyz[1], ego_xyz[2], yaw, *dims.tolist()], dtype=np.float32)
+    return bbox
+
+def angle_constraint(theta:float) -> float:
+    if theta >= np.pi:
+        return (theta - np.pi * 2)    # make the theta still in the range
+    if theta < -np.pi:
+        return (theta + np.pi * 2)
+
+    return theta
 
 if __name__ == '__main__':
     test_yaw_to_quaternion3d()

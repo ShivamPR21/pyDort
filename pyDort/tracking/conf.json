@@ -1,0 +1,46 @@
+{
+    "obj_class-motion_type": {
+        "PEDESTRIAN": "pedestrian-cv",
+        "VEHICLE": "vehicle-cv"
+    },
+    "pedestrian-cv": {
+        "//x_init": "9 dimensional vector",
+        "x_init": [0, 0, 0, 0, 0, 0, 0, 0.0, 0],
+        "//x_covar": "9 dimensional vector, or 9x9 dimensional vector",
+        "x_covar": [0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 1, 0.1],
+        "//z_covar": "7 dimensional vector, or 7x7 dimensional vector",
+        "z_covar": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+        "//proc_covar or Q": "9 dimensional vector, or 9x9 dimensional vector",
+        "Q": [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    },
+    "vehicle-cv": {
+        "//x_init": "9 dimensional vector",
+        "x_init": [0, 0, 0, 0, 0, 0, 0, 0.0, 0],
+        "//x_covar": "9 dimensional vector, or 9x9 dimensional vector",
+        "x_covar": [0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.1, 10, 0.5],
+        "//z_covar": "7 dimensional vector, or 7x7 dimensional vector",
+        "z_covar": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+        "//proc_covar or Q": "9 dimensional vector, or 9x9 dimensional vector",
+        "Q": [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    },
+    "vehicle-ctrv": {
+        "//x_init": "10 dimensional vector",
+        "x_init": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        "//x_covar": "10 dimensional vector, or 10x10 dimensional vector",
+        "x_covar": [10, 10, 10, 1, 1, 1, 1, 100, 1, 1],
+        "//z_covar": "7 dimensional vector, or 7x7 dimensional vector",
+        "z_covar": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+        "//proc_covar or Q": "10 dimensional vector, or 10x10 dimensional vector",
+        "Q": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+    },
+    "vehicle-adaptive-ctrv": {
+        "//x_init": "10 dimensional vector",
+        "x_init": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        "//x_covar": "10 dimensional vector, or 10x10 dimensional vector",
+        "x_covar": [10, 10, 10, 1, 1, 1, 1, 100, 1, 1],
+        "//z_covar": "7 dimensional vector, or 7x7 dimensional vector",
+        "z_covar": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+        "//proc_covar or Q": "10 dimensional vector, or 10x10 dimensional vector",
+        "Q": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+    }
+}

@@ -15,7 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
+from enum import Enum
 from typing import Any
+
+
+class SemStatus(Enum):
+    Init = 1
+    Propagated = 2
+    Updated = 3
 
 
 class StateEvolution:
@@ -26,12 +33,13 @@ class StateEvolution:
                  dt: float = None) -> None:
         self.state_dim, self.obs_dim = state_dim, obs_dim
         self.dt = dt
+        self.status = SemStatus.Init
 
-    def propagate(self) -> Any:
-        raise NotImplementedError
+    def propagate(self) -> None:
+        self.status = SemStatus.Propagated
 
-    def update(self) -> Any:
-        raise NotImplementedError
+    def update(self) -> None:
+        self.status = SemStatus.Updated
 
     @property
     def state(self) -> Any:

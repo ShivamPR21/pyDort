@@ -1,1 +1,2 @@
+from .contrastive import ImageContrastiveRepresentation
 from .resnet import ResnetImageRepresentation

@@ -53,16 +53,16 @@ class ResnetImageRepresentation(SimpleArgoverseDetectionRepresentation):
                                                                  "weights": Swin_B_Weights.IMAGENET1K_V1}, # test
                                         "regnet_y_16gf":        {"fxn": regnet_y_16gf,
                                                                  "weights": RegNet_Y_16GF_Weights.IMAGENET1K_SWAG_E2E_V1}, # test
-                                        "efficientnet_v2_s":     {"fxn": efficientnet_v2_s,
-                                                                  "weights": EfficientNet_V2_S_Weights.IMAGENET1K_V1}, # test
-                                        "efficientnet_v2_m":     {"fxn": efficientnet_v2_m,
-                                                                  "weights": EfficientNet_V2_M_Weights.IMAGENET1K_V1}, # test
-                                        "efficientnet_b3":       {"fxn": efficientnet_b3,
-                                                                  "weights": EfficientNet_B3_Weights.IMAGENET1K_V1}, # test
-                                        "vit_b16":               {"fxn": vit_b_16,
-                                                                  "weights": ViT_B_16_Weights.IMAGENET1K_SWAG_E2E_V1}, # test
-                                        "regnet_x_3_3gf":        {"fxn": regnet_x_3_2gf,
-                                                                  "weights": RegNet_X_3_2GF_Weights.IMAGENET1K_V2} # test
+                                        "efficientnet_v2_s":    {"fxn": efficientnet_v2_s,
+                                                                 "weights": EfficientNet_V2_S_Weights.IMAGENET1K_V1}, # test
+                                        "efficientnet_v2_m":    {"fxn": efficientnet_v2_m,
+                                                                 "weights": EfficientNet_V2_M_Weights.IMAGENET1K_V1}, # test
+                                        "efficientnet_b3":      {"fxn": efficientnet_b3,
+                                                                 "weights": EfficientNet_B3_Weights.IMAGENET1K_V1}, # test
+                                        "vit_b16":              {"fxn": vit_b_16,
+                                                                 "weights": ViT_B_16_Weights.IMAGENET1K_SWAG_E2E_V1}, # test
+                                        "regnet_x_3_3gf":       {"fxn": regnet_x_3_2gf,
+                                                                 "weights": RegNet_X_3_2GF_Weights.IMAGENET1K_V2} # test
                                         }
         assert (model in self.avail_models)
 

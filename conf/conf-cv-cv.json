@@ -1,0 +1,26 @@
+{
+    "obj_class-motion_type": {
+        "PEDESTRIAN": "pedestrian-cv",
+        "VEHICLE": "vehicle-cv"
+    },
+    "pedestrian-cv": {
+        "//x_init": "10 dimensional vector",
+        "x_init": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "//x_covar": "10 dimensional vector, or 10x10 dimensional vector",
+        "x_covar": [1.0, 1.0, 1.0, 0.5, 0.01, 0.01, 0.01, 3.0, 3.0, 0.01],
+        "//z_covar": "7 dimensional vector, or 7x7 dimensional vector",
+        "z_covar": [0.1, 0.1, 0.1, 0.1, 0.01, 0.01, 0.01],
+        "//proc_covar or Q": "10 dimensional vector, or 10x10 dimensional vector",
+        "Q": [2.0, 2.0, 2.0, 0.5, 0.1, 0.1, 0.1, 1.0, 1.0, 0.01]
+    },
+    "vehicle-cv": {
+        "//x_init": "9 dimensional vector",
+        "x_init": [0, 0, 0, 0, 0, 0, 0, 0.0, 0],
+        "//x_covar": "9 dimensional vector, or 9x9 dimensional vector",
+        "x_covar": [1.0, 1.0, 1.0, 0.1, 0.01, 0.01, 0.01, 100.0, 0.01],
+        "//z_covar": "7 dimensional vector, or 7x7 dimensional vector",
+        "z_covar": [0.1, 0.1, 0.1, 0.1, 0.01, 0.01, 0.01],
+        "//proc_covar or Q": "9 dimensional vector, or 9x9 dimensional vector",
+        "Q": [1.0, 1.0, 1.0, 0.1, 0.1, 0.1, 0.1, 1.0, 0.1]
+    }
+}

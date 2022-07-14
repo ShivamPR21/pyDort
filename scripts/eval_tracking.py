@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, TextIO, Union
 
 import motmetrics as mm
 import numpy as np
+import pandas as pd
 from argoverse.evaluation.detection.utils import wrap_angle
 from argoverse.evaluation.eval_utils import label_to_bbox
 from argoverse.utils.json_utils import read_json_file
@@ -91,8 +92,7 @@ def get_distance(x1: Dict[str, np.ndarray], x2: Dict[str, np.ndarray], name: str
     """
     if name == "centroid":
         dist = float(np.linalg.norm(x1[name][0:3] - x2[name][0:3]))
-        # return dist if dist < 50 else float(np.nan)
-        return dist
+        return dist if dist < 2 else float(np.nan)
     elif name == "iou":
         return get_distance_iou_3d(x1, x2, name)
     elif name == "orientation":
@@ -110,7 +110,7 @@ def eval_tracks(
     path_dataset_root: _PathLike,
     d_min: float,
     d_max: float,
-    out_file: TextIO,
+    out_file: str,
     centroid_method: str,
     diffatt: Optional[str],
     category: str = "VEHICLE",
@@ -155,7 +155,7 @@ def eval_tracks(
     path_datasets = glob.glob(os.path.join(path_dataset_root, "*"))
     num_total_gt = 0
 
-    for path_dataset in path_datasets[:5]:
+    for path_dataset in path_datasets:
 
         log_id = pathlib.Path(path_dataset).name
         if len(log_id) == 0 or log_id.startswith("_"):
@@ -296,17 +296,16 @@ def eval_tracks(
         name="acc",
     )
     logger.info("summary = %s", summary)
-    print(f'summary = \n {summary}')
 
     num_tracks = len(ID_gt_all)
 
     fn = os.path.basename(path_tracker_output)
     num_frames = summary["num_frames"][0]
     mota = summary["mota"][0] * 100
-    motp_c = summary["motp"][0]
-    idf1 = summary["idf1"][0]
-    most_track = summary["mostly_tracked"][0] / num_tracks
-    most_lost = summary["mostly_lost"][0] / num_tracks
+    motp_c = (1 - summary["motp"][0])*100
+    idf1 = summary["idf1"][0]*100
+    most_track = summary["mostly_tracked"][0] / num_tracks *100
+    most_lost = summary["mostly_lost"][0] / num_tracks *100
     num_fp = summary["num_false_positives"][0]
     num_miss = summary["num_misses"][0]
     num_switch = summary["num_switches"][0]
@@ -329,13 +328,14 @@ def eval_tracks(
     fn = os.path.basename(path_tracker_output)
     motp_o = sum_motp_o["motp"][0]
 
-    out_string = (
-        f"{fn} {num_frames} {mota:.2f} {motp_c:.2f} {motp_o:.2f} {motp_i:.2f} {idf1:.2f} {most_track:.2f} "
-        f"{most_lost:.2f} {num_fp} {num_miss} {num_switch} {num_frag} \n"
-    )
-    out_file.write(out_string)
-    # out_file.write("total gt num = %d" %  num_total_gt)
-    # print(out_string)
+    out_df = pd.DataFrame([[fn, num_frames, num_tracks, mota, motp_c, motp_o, motp_i, idf1, most_track, most_lost, num_fp, num_miss, num_switch, num_frag]]
+                          , columns=[
+                              "File Name",
+                              "Num Frames", "Num Tracks", "MOTA", "MOTP_c", "MOTP_o", "MOTP_i",
+                              "IDF1", "Most Track", "Most Lost", "Number of False Positive",
+                              "Number of Misses", "Number of Switches", "Number of Fragments"])
+
+    out_df.to_csv(out_file)
 
 
 if __name__ == "__main__":
@@ -368,26 +368,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info("args = %s", args)
 
-    tk_basename = os.path.basename(args.path_tracker_output)
+    tk_basename = args.path_tracker_output
 
-    out_filename = f"{tk_basename}_{args.flag}_{int(args.d_min)}_{int(args.d_max)}_\
-    {args.centroid_method}_{args.diffatt}_{args.category}.txt"
+    out_filename = f'{tk_basename}/_{args.flag}_{int(args.d_min)}_{int(args.d_max)}_{args.centroid_method}_{args.diffatt}_{args.category}.csv'
 
     logger.info("output file name = %s", out_filename)
     print(f'output file name = {out_filename}')
 
-    with open(out_filename, "w") as out_file:
-
-        eval_tracks(
-            args.path_tracker_output,
-            args.path_dataset,
-            args.d_min,
-            args.d_max,
-            out_file,
-            args.centroid_method,
-            args.diffatt,
-            args.category,
-        )
+    eval_tracks(
+        args.path_tracker_output,
+        args.path_dataset,
+        args.d_min,
+        args.d_max,
+        out_filename,
+        args.centroid_method,
+        args.diffatt,
+        args.category,
+    )
 
 # python3 eval_tracking_diff.py \
 # --path_tracker_output=/data/tracker_output \

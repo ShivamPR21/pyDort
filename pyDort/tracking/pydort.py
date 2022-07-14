@@ -1,4 +1,5 @@
 import json
+from decimal import InvalidOperation
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
@@ -35,6 +36,7 @@ class PyDort:
         self.ocmt_rev_map = {value: key for key, value in self.conf["obj_class-motion_type"].items()}
 
     def update(self, dets_all : List[ArgoverseObjectDataFrame]) -> List[List[Any]]:
+        # self.tracks = [] # Uncomment to see detections #TODO: Be cautious
         self.frame_count += 1
         state_dims = self.track_type().tracklet_class().state_dims
         n_tracks = len(self.tracks)
@@ -80,7 +82,7 @@ class PyDort:
                           trks_dsc = trks_dsc if self.da_model.descriptor_aug else None,
                           dets_state = dets_st if self.da_model.state_aug else None,
                           trks_state = trks_st if self.da_model.state_aug else None,
-                          scm_w = np.array([0.5, 0.5, 0.3], dtype=np.float32))
+                          scm_w = np.array([2.0, 1.0, 0.0], dtype=np.float32))
 
         print(f'Matchings -> {len(matched)}::{len(unmatched_dets)}::{len(unmatched_trks)}')
 
@@ -92,7 +94,12 @@ class PyDort:
                 try:
                     trk.update(bbox, dets_dsc[d, :])
                 except:
+                    print(f'Unable to propagate the track {trk.track_id} :: Num tracklets : {trk.tracklet_count}, Num missed frames : {trk.missed_frames}, Num updates : {trk.updates_count}')
                     trk.status = TrackStatus.Stale
+
+        n_tracks = len(self.tracks)
+        n_removed = self.remove_tracks_by_status(TrackStatus.Stale)
+        print(f'Not able to update tracks removed: {n_removed}/{n_tracks}, \nNumber of Tracks now : {len(self.tracks)}')
 
         # Create new tracks for unmatched detections
         for i in unmatched_dets:        # a scalar of index

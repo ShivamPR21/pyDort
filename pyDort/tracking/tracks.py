@@ -46,11 +46,8 @@ class Track3D:
                 cache_lim : int = -1,
                 sem : Callable[..., Type[StateEvolution]] = None) -> None:
 
-        if id is None:
-            self.track_id = Track3D.count
-            Track3D.count += 1
-        else:
-            self.track_id = id
+        self.track_id = id if id is not None else Track3D.count
+        Track3D.count += 1
 
         assert(obj_type in tracklets)
         self.obj_class = obj_type
@@ -63,12 +60,14 @@ class Track3D:
 
         self.tracklet_count = 0
         self.missed_frames = 0
+        self.updates_count = 0
 
         self.sem : Type[StateEvolution] = sem
 
     def init(self, tracklet: Type[Tracklet]):
         info = tracklet.info
-        info['alpha'] = np.zeros((tracklet.state_dims,))+1e-3
+        # info['alpha'] = np.zeros((tracklet.state_dims,))+1e-3
+        info['alpha'] = 1e-1
         self.sem = self.sem(tracklet.state_dims, tracklet.obs_dims, self.dt, info)
 
         self.tracklet_count += 1
@@ -83,6 +82,7 @@ class Track3D:
         self.status = TrackStatus.Active
 
         if (self.sem.status == SemStatus.Propagated):
+            self.updates_count = 0
             self.missed_frames += 1
             self.status = TrackStatus.Missing
 
@@ -97,15 +97,14 @@ class Track3D:
             self.sem.process_noise,
             dsc)
 
-        self.tracklet_count += 1
-        self.track.put(tracklet)
-
-        if (self.stale_lim - self.missed_frames <= 0):
+        tracklet.set_status(TrackletType.Dummy)
+        if (self.stale_lim - self.missed_frames <= -1):
+            print(f'Track id {self.track_id} stale : {self.stale_lim}/{self.missed_frames}')
             self.status = TrackStatus.Stale
             tracklet.set_status(TrackletType.End)
-        else:
-            tracklet.set_status(TrackletType.Dummy)
 
+        self.tracklet_count += 1
+        self.track.put(tracklet)
 
     def update(self, observation: np.ndarray, descriptor: Optional[np.ndarray] = None):
 
@@ -116,6 +115,7 @@ class Track3D:
                               descriptor=descriptor)
 
         self.missed_frames = 0
+        self.updates_count += 1
         self.status = TrackStatus.Active
         self.track[-1].set_status(TrackletType.Real)
 

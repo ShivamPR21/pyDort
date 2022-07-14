@@ -189,9 +189,12 @@ class DataAssociation:
                                       **kwargs) -> np.ndarray:
         # dets : [M, n]
         # trks : [N, n]
+        dsts /= (np.linalg.norm(dets, axis=1)+1e-10)
+        trks /= (np.linalg.norm(trks, axis=1)+1e-10)
+
         cost_matrix : np.ndarray = -dets.dot(trks.T) # [M, N] matrix
-        cost_matrix -= cost_matrix.min()+1e-9
-        cost_matrix /= cost_matrix.max()+1e-9
+        cost_matrix -= cost_matrix.min()
+        cost_matrix /= (cost_matrix.max()+1e-9)
 
         return cost_matrix
 
@@ -199,7 +202,7 @@ class DataAssociation:
         assert(cm.ndim == 2)
         # Normalize
         cm -= cm.min()
-        cm /= cm.max()+1e-9
+        cm /= (cm.max()+1e-9)
 
         row_idxs, col_idxs = linear_sum_assignment(cm)
 

@@ -124,7 +124,9 @@ class Tracklet:
     def info(self) -> Dict[str, Any]:
         info = {
             'f': self.f,
+            'fx': self.fx,
             'h': self.h,
+            'hx': self.hx,
             'phi': self.phi,
             'phi_inv': self.phi_inv,
             'Q': self._Q,
@@ -144,9 +146,17 @@ class Tracklet:
         return _new_state
 
     @classmethod
+    def fx(cls, state, dt):
+        raise NotImplementedError
+
+    @classmethod
     def h(cls, state: Union[Type[Primitives], np.ndarray]) -> np.ndarray:
         _pred_observation = state() if isinstance(state, Primitives) else state # Simplest and complete observation model
         return _pred_observation
+
+    @classmethod
+    def hx(cls, state):
+        raise NotImplementedError
 
     @classmethod
     def phi(cls, state : Union[Type[Primitives], np.ndarray], xi : np.ndarray) -> np.ndarray:
@@ -214,12 +224,16 @@ class TrackletVehicleCV(Tracklet):
             0, # h
             0, # v
             0 # v_z
-        ])
+        ], dtype=np.float32)
 
         _new_state += w
         _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
 
         return _new_state
+
+    @classmethod
+    def fx(cls, state, dt):
+        return cls.f(state, None, np.array([0.]), dt)
 
     @classmethod
     def h(cls,
@@ -228,6 +242,11 @@ class TrackletVehicleCV(Tracklet):
         _pred_observation = _pred_observation[[0, 1, 2, 3, 4, 5, 6]] # x, y, z, yaw, l, b, h
         _pred_observation[3] = angle_constraint(_pred_observation[3])
         return _pred_observation
+
+    @classmethod
+    def hx(cls,
+           state):
+        return cls.h(state)
 
     @classmethod
     def phi(cls,
@@ -246,11 +265,13 @@ class TrackletVehicleCV(Tracklet):
     def state_from_observation(self, observation: np.ndarray, init_state: Optional[np.ndarray] = None) -> np.ndarray:
         state = np.zeros((self.state_dims, ), dtype=np.float32) if init_state is None else init_state
         state[:self.obs_dims] = observation
+        state[3] = angle_constraint(state[3])
         return state
 
     def observation_from_state(self, state: np.ndarray) -> np.ndarray:
         observation = np.zeros((self.obs_dims, ), dtype=np.float32)
         observation = state[:self.obs_dims]
+        observation[3] = angle_constraint(observation[3])
         return observation
 
 class TrackletPedestrianCV(Tracklet):
@@ -274,7 +295,7 @@ class TrackletPedestrianCV(Tracklet):
 
     @property
     def state_dims(self) -> int:
-        return 9
+        return 10
 
     @property
     def obs_dims(self) -> int:
@@ -286,19 +307,20 @@ class TrackletPedestrianCV(Tracklet):
           omega: Optional[np.ndarray], w: np.ndarray, dt: float) -> np.ndarray:
         # no force is exerted
         _new_state = state() if isinstance(state, Primitives) else state
-        v, v_z, yaw = _new_state[[7, 8, 3]]
+        vx, vy, vz = _new_state[[7, 8, 9]]
 
         _new_state += np.array([
-            v*dt*np.cos(yaw), # Cx
-            v*dt*np.sin(yaw), # Cy
-            v_z*dt, # Cz
-            0, # yaw
-            0, # l
-            0, # b
-            0, # h
-            0, # v
-            0 # v_z
-        ])
+            vx*dt, # Cx
+            vy*dt, # Cy
+            vz*dt, # Cz
+            0,     # yaw
+            0,     # l
+            0,     # b
+            0,     # h
+            0,     # vx
+            0,     # vy
+            0      # vz
+        ], dtype=np.float32)
 
         _new_state += w
         _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
@@ -306,18 +328,27 @@ class TrackletPedestrianCV(Tracklet):
         return _new_state
 
     @classmethod
+    def fx(cls, state, dt):
+        return cls.f(state, None, np.array([0.]), dt)
+
+    @classmethod
     def h(cls,
           state: Union[Type[VehicleStateCV], np.ndarray]) -> np.ndarray:
         _pred_observation = state() if isinstance(state, Primitives) else state
-        _pred_observation = _pred_observation[[0, 1, 2, 3, 4, 5, 6]] # x, y, z, l, b, h
+        _pred_observation = _pred_observation[[0, 1, 2, 3, 4, 5, 6]] # x, y, z, yaw, l, b, h
         _pred_observation[3] = angle_constraint(_pred_observation[3])
         return _pred_observation
+
+    @classmethod
+    def hx(cls,
+           state):
+        return cls.h(state)
 
     @classmethod
     def phi(cls,
             state: Union[Type[VehicleStateCV], np.ndarray], xi: np.ndarray) -> np.ndarray:
         _new_state = state + xi #TODO: Check for validity @ShivamPR21
-        _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
+        # _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
         return _new_state
 
     @classmethod
@@ -330,11 +361,13 @@ class TrackletPedestrianCV(Tracklet):
     def state_from_observation(self, observation: np.ndarray, init_state: Optional[np.ndarray] = None) -> np.ndarray:
         state = np.zeros((self.state_dims, ), dtype=np.float32) if init_state is None else init_state
         state[:self.obs_dims] = observation
+        # state[3] = angle_constraint(state[3])
         return state
 
     def observation_from_state(self, state: np.ndarray) -> np.ndarray:
         observation = np.zeros((self.obs_dims, ), dtype=np.float32)
         observation = state[:self.obs_dims]
+        # observation[3] = angle_constraint(observation[3])
         return observation
 
 class TrackletVehicleCTRV(Tracklet):
@@ -383,7 +416,7 @@ class TrackletVehicleCTRV(Tracklet):
             0, # v
             0, # v_z
             0 # psi_dot
-        ])
+        ], dtype=np.float32)
 
         _new_state += w
         _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
@@ -391,18 +424,27 @@ class TrackletVehicleCTRV(Tracklet):
         return _new_state
 
     @classmethod
+    def fx(cls, state, dt):
+        return cls.f(state, None, np.array([0.]), dt)
+
+    @classmethod
     def h(cls,
           state: Union[Type[VehicleStateCV], np.ndarray]) -> np.ndarray:
         _pred_observation = state() if isinstance(state, Primitives) else state
         _pred_observation = _pred_observation[[0, 1, 2, 3, 4, 5, 6]] # x, y, z, yaw, l, b, h
-        _pred_observation[3] = angle_constraint(_pred_observation[3])
+        # _pred_observation[3] = angle_constraint(_pred_observation[3])
         return _pred_observation
+
+    @classmethod
+    def hx(cls,
+           state):
+        return cls.h(state)
 
     @classmethod
     def phi(cls,
             state: Union[Type[VehicleStateCV], np.ndarray], xi: np.ndarray) -> np.ndarray:
         _new_state = state + xi #TODO: Check for validity @ShivamPR21
-        _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
+        # _new_state[3] = angle_constraint(_new_state[3]) # apply angle constraint
         return _new_state
 
     @classmethod
@@ -415,11 +457,13 @@ class TrackletVehicleCTRV(Tracklet):
     def state_from_observation(self, observation: np.ndarray, init_state: Optional[np.ndarray] = None) -> np.ndarray:
         state = np.zeros((self.state_dims, ), dtype=np.float32) if init_state is None else init_state
         state[:self.obs_dims] = observation
+        # state[3] = angle_constraint(state[3])
         return state
 
     def observation_from_state(self, state: np.ndarray) -> np.ndarray:
         observation = np.zeros((self.obs_dims, ), dtype=np.float32)
         observation = state[:self.obs_dims]
+        # observation[3] = angle_constraint(observation[3])
         return observation
 
 class TrackletVehicleAdaptiveCTRV(TrackletVehicleCTRV):

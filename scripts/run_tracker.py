@@ -19,6 +19,7 @@ import argparse
 import copy
 import os
 from pathlib import Path
+from typing import List
 
 import numpy as np
 from argoverse.utils.se2 import SE2
@@ -44,7 +45,8 @@ def run_tracker(
     tracks_dump_dir: str,
     max_age: int = 3,
     min_hits: int = 1,
-    min_conf: float = 0.3
+    min_conf: float = 0.3,
+    target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"]
     ) -> None:
 
     uuid_gen = UUIDGeneration()
@@ -59,18 +61,21 @@ def run_tracker(
                                            central_crop=True,
                                            img_tr_ww=(0.9, 0.9),
                                            discard_invalid_dfs=True,
-                                           img_reshape=(128, 128))
+                                           img_reshape=(128, 128),
+                                           target_cls=target_cls)
 
     appearance_model = SimpleArgoverseDetectionRepresentation()
-    da_model = DataAssociation(2e-1, False, True, None, None, np.array([1, 2], dtype=np.float32))
+    da_model = DataAssociation(9e-2, False, True, None, None, np.array([1, 2], dtype=np.float32))
 
-    for i, log_id in tqdm(enumerate(dl.log_list[:2])):
+    for i, log_id in tqdm(enumerate(dl.log_list[:1])):
         # Init dataset with log_id
         dl.dataset_init(i)
         tracker = PyDort(max_age, dl.mdt, min_hits, appearance_model, da_model, UKF, config_file)
 
         for j in range(len(dl)):
             dets = dl[j]
+            if dets is None: continue
+
             city_SE3_egovehicle, current_lidar_timestamp = dl.city_to_egovehicle_se3_list[j], dl.lidar_timestamps[j]
 
             n_dets = len(dets)
@@ -141,11 +146,13 @@ if __name__ == "__main__":
     parser.add_argument("--min_conf", type=float,
         default=0.3,
         help="minimum allowed confidence for 3d detections to be considered valid")
+    parser.add_argument("--target_cls", action="append", help="Classes to be tracked at once.", required=True)
     parser.add_argument("--config_file", type=str,
         default=f'{Path(__file__).parent.resolve()}/../pyDort/tracking/conf.json',
         help="Config file, containing information about different parameters.")
 
     args = parser.parse_args()
+    print(args)
 
     run_tracker(
         raw_data_dir=args.raw_data_dir,
@@ -154,5 +161,6 @@ if __name__ == "__main__":
         tracks_dump_dir=args.tracks_dump_dir,
         max_age=args.max_age,
         min_hits=args.min_hits,
-        min_conf=args.min_conf
+        min_conf=args.min_conf,
+        target_cls=args.target_cls
     )

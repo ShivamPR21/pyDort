@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from argoverse.data_loading.object_label_record import (
@@ -50,7 +50,8 @@ class ArgoverseTrackingInferenceDataset:
                  central_crop : bool = True,
                  img_tr_ww : Tuple[float, float] = (0.7, 0.7),
                  discard_invalid_dfs : bool = True,
-                 img_reshape : Tuple[int, int] = (200, 200)) -> None:
+                 img_reshape : Tuple[int, int] = (200, 200),
+                 target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"]) -> None:
 
         self.data_dir, self.dets_dump_dir = data_dir, dets_dump_dir
         self.log_id = log_id
@@ -75,6 +76,7 @@ class ArgoverseTrackingInferenceDataset:
         self.discard_invalid_dfs = discard_invalid_dfs
 
         self.img_reshape = img_reshape
+        self.target_cls = target_cls
 
         self.am = ArgoverseMap()
 
@@ -133,7 +135,7 @@ class ArgoverseTrackingInferenceDataset:
         self.calib_data : Dict[Any, Calibration] = None
         self.mdt = -1
 
-    def load_data_frame(self, idx : int):
+    def load_data_frame(self, idx : int) -> bool:
         self.curr_frame_data : List[ArgoverseObjectDataFrame] = []
 
         assert(not self.n_frames is None and 0<=idx and idx < self.n_frames)
@@ -143,7 +145,7 @@ class ArgoverseTrackingInferenceDataset:
             self.tracking_loader.get_city_to_egovehicle_se3(self.log_id, timestamp)
 
         if self.city_to_egovehicle_se3_list[idx] is None:
-            return
+            return False
 
         # Get point cloud
         pcloud_fpath = self.tracking_loader.get_closest_lidar_fpath(self.log_id, timestamp)
@@ -165,6 +167,7 @@ class ArgoverseTrackingInferenceDataset:
         objects = self.tracking_loader.get_labels_at_lidar_timestamp(self.log_id, timestamp)
         for obj in objects:
             obj = json_label_dict_to_obj_record(obj)
+            if not obj.label_class in self.target_cls: continue
 
             df_obj = ArgoverseObjectDataFrame(timestamp, "-", augmentation=True,
                                               img_resize=self.img_reshape, n_images=self.n_img_view_aug)
@@ -182,6 +185,8 @@ class ArgoverseTrackingInferenceDataset:
 
             df_obj.generate_inference_img_data()
             self.curr_frame_data.append(df_obj)
+
+        return True
 
     def __populate_object_dataframe__(self,
                                 idx : int,
@@ -267,8 +272,9 @@ class ArgoverseTrackingInferenceDataset:
         )
         return roi_area_pts
 
-    def __getitem__(self, idx:int) -> List[ArgoverseObjectDataFrame]:
-        self.load_data_frame(idx)
+    def __getitem__(self, idx:int) -> Optional[List[ArgoverseObjectDataFrame]]:
+        if (not self.load_data_frame(idx)):
+            return None
         return self.curr_frame_data
 
     def __len__(self) -> int:

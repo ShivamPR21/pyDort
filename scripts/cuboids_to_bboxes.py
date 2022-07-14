@@ -255,9 +255,10 @@ def dump_clipped_3d_cuboids_to_images(
 def main(args: Any):
     """Run the example."""
     log_ids = [log_id.strip() for log_id in args.log_ids.split(",")]
-    dump_clipped_3d_cuboids_to_images(
-        log_ids, args.max_num_images_to_render * 9, args.dataset_dir, args.labels_dir, args.experiment_prefix
-    )
+    for l in log_ids:
+        dump_clipped_3d_cuboids_to_images(
+            [l], args.max_num_images_to_render * 9, args.dataset_dir, args.labels_dir, args.experiment_prefix
+        )
 
 
 if __name__ == "__main__":

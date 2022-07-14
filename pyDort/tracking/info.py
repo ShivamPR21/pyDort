@@ -7,6 +7,7 @@ from .tracklet import (
 
 tracklets = {
     'pedestrian-cv': TrackletPedestrianCV,
+    'pedestrian-cv-v0': TrackletVehicleCV,
     'vehicle-cv': TrackletVehicleCV,
     'vehicle-ctrv': TrackletVehicleCTRV,
     'vehicle-adaptive-ctrv': TrackletVehicleAdaptiveCTRV

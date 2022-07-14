@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Tuple
 
 import numpy as np
 from clort.clearn.data.dataframe import ArgoverseObjectDataFrame
@@ -13,13 +13,17 @@ class SimpleArgoverseDetectionRepresentation(DataRepresentation):
         pass
 
     @staticmethod
-    def extract_feature(data: ArgoverseObjectDataFrame) -> np.ndarray:
+    def extract_state(data: ArgoverseObjectDataFrame) -> np.ndarray:
         bbox = data.bbox_global # 8 Bounding box corners in global reference frame
         feature = bbox_3d_from_8corners(bbox, data.dims)
         return feature
 
-    def __call__(self, data: List[ArgoverseObjectDataFrame], state_aug: bool = True) -> np.ndarray:
-        features = [self.extract_feature(obj) for obj in data]
+    def __call__(self, data: List[ArgoverseObjectDataFrame], state_aug: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        if len(data) == 0:
+            tmp = np.empty((0, 1), dtype=np.float32)
+            return (tmp, tmp) if state_aug else (tmp, None)
+
+        features = [self.extract_state(obj) for obj in data]
         features = np.stack(features, axis=0)
 
         if state_aug:

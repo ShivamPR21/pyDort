@@ -24,9 +24,9 @@ import numpy as np
 from argoverse.utils.se2 import SE2
 from pyDort.helpers import UUIDGeneration, check_mkdir, read_json_file, save_json_dict
 from pyDort.representation import (
+    ImageContrastiveRepresentation,
     MultiModalRepresentation,
     PointCloudRepresentation,
-    ResnetImageRepresentation,
 )
 from pyDort.sem.data_association import DataAssociation
 from pyDort.sem.filterpy_ukf import FilterPyUKF
@@ -74,13 +74,13 @@ def run_tracker(
                                            img_reshape=(64, 64),
                                            target_cls=target_cls)
 
-    im_enc_model = ResnetImageRepresentation(im_model, None, im_gpu, agr, im_chunk_size)
+    im_enc_model = ImageContrastiveRepresentation(im_model, im_gpu, agr, im_chunk_size)
     pcd_enc_model = PointCloudRepresentation(pcd_model, pcd_gpu, pcd_chunk_size, n_points=30, k=10)
     appearance_model = MultiModalRepresentation(im_enc_model, pcd_enc_model)
 
     da_model = DataAssociation(9e-2, False, True, None, None, np.array([2, 1], dtype=np.float32))
 
-    for i, log_id in tqdm(enumerate(dl.log_list[:2])):
+    for i, log_id in tqdm(enumerate(dl.log_list)):
         # Init dataset with log_id
         dl.dataset_init(i)
         tracker = PyDort(max_age, dl.mdt, min_hits, appearance_model, da_model, FilterPyUKF, config_file)

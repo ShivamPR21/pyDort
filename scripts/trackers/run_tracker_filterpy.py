@@ -23,11 +23,7 @@ from typing import List
 import numpy as np
 from argoverse.utils.se2 import SE2
 from pyDort.helpers import UUIDGeneration, check_mkdir, read_json_file, save_json_dict
-from pyDort.representation import (
-    ImageContrastiveRepresentation,
-    MultiModalRepresentation,
-    PointCloudRepresentation,
-)
+from pyDort.representation.simple import SimpleArgoverseDetectionRepresentation
 from pyDort.sem.data_association import DataAssociation
 from pyDort.sem.filterpy_ukf import FilterPyUKF
 from pyDort.tracking.data_pipe import ArgoverseTrackingInferenceDataset
@@ -49,14 +45,7 @@ def run_tracker(
     max_age: int = 3,
     min_hits: int = 1,
     min_conf: float = 0.3,
-    target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"],
-    im_model: str = "resnet18",
-    pcd_model: str = "pointnet",
-    im_gpu: bool = False,
-    pcd_gpu: bool = False,
-    agr: str = "max",
-    im_chunk_size: int = 1,
-    pcd_chunk_size: int = 1
+    target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"]
     ) -> None:
 
     uuid_gen = UUIDGeneration()
@@ -64,7 +53,7 @@ def run_tracker(
     dl = ArgoverseTrackingInferenceDataset(raw_data_dir,
                                            dets_dump_dir,
                                            log_id="",
-                                           lidar_points_thresh=30,
+                                           lidar_points_thresh=10,
                                            image_size_threshold=50,
                                            n_img_view_aug=7,
                                            aug_transforms=None,
@@ -74,13 +63,10 @@ def run_tracker(
                                            img_reshape=(64, 64),
                                            target_cls=target_cls)
 
-    im_enc_model = ImageContrastiveRepresentation(im_model, im_gpu, agr, im_chunk_size)
-    pcd_enc_model = PointCloudRepresentation(pcd_model, pcd_gpu, pcd_chunk_size, n_points=30, k=10)
-    appearance_model = MultiModalRepresentation(im_enc_model, pcd_enc_model)
+    appearance_model = SimpleArgoverseDetectionRepresentation()
+    da_model = DataAssociation(9e-2, False, True, None, None, np.array([1, 2], dtype=np.float32))
 
-    da_model = DataAssociation(9e-2, False, True, None, None, np.array([2, 1], dtype=np.float32))
-
-    for i, log_id in tqdm(enumerate(dl.log_list[:2])):
+    for i, log_id in tqdm(enumerate(dl.log_list)):
         # Init dataset with log_id
         dl.dataset_init(i)
         tracker = PyDort(max_age, dl.mdt, min_hits, appearance_model, da_model, FilterPyUKF, config_file)
@@ -163,22 +149,9 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str,
         default=f'{Path(__file__).parent.resolve()}/../pyDort/tracking/conf.json',
         help="Config file, containing information about different parameters.")
-    parser.add_argument("--im_model", type=str,
-                        default="resnet18", help="Image model to be used for encodings.")
-    parser.add_argument("--pcd_model", type=str,
-                        default="pointnet", help="Image model to be used for encodings.")
-    parser.add_argument("--im_gpu", action=argparse.BooleanOptionalAction,
-                        help="If given and available gpu will be used.")
-    parser.add_argument("--pcd_gpu", action=argparse.BooleanOptionalAction,
-                        help="If given and available gpu will be used.")
-    parser.add_argument("--agr", type=str, default="max",
-                        help="one of the : max, avg, median, mode")
-    parser.add_argument("--im_chunk_size", type=int, default=10,
-                        help="Model chunk size")
-    parser.add_argument("--pcd_chunk_size", type=int, default=10,
-                        help="Model chunk size")
 
     args = parser.parse_args()
+    print(args)
 
     run_tracker(
         raw_data_dir=args.raw_data_dir,
@@ -188,12 +161,5 @@ if __name__ == "__main__":
         max_age=args.max_age,
         min_hits=args.min_hits,
         min_conf=args.min_conf,
-        target_cls=args.target_cls,
-        im_model=args.im_model,
-        pcd_model=args.pcd_model,
-        im_gpu=args.im_gpu,
-        pcd_gpu=args.pcd_gpu,
-        agr=args.agr,
-        im_chunk_size=args.im_chunk_size,
-        pcd_chunk_size=args.pcd_chunk_size,
+        target_cls=args.target_cls
     )

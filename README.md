@@ -25,6 +25,7 @@ Python Deep Online Realtime Tracking
 
     ```sh
     python scripts/run_tracker_contrastive_filterpy.py --dets_dataroot $HOME/Research/datasets/argoverse-tracking/test/argoverse_detections_2020/training/ --raw_data_dir $HOME/Research/datasets/argoverse-tracking/train1/ --min_hits 1 --max_age 5 --tracks_dump_dir results/tracks_dump_exp3_resnet18_cl_tracker --config_file conf/conf-cv-cv.json --target_cls PEDESTRIAN --gpu --model resnet18 --agr avg --chunk_size 2 > results/out4.txt
+    ```
 
 5. Image(Contrastive) + Point Cloud based deep metric for data association
 

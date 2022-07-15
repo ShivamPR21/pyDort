@@ -361,13 +361,13 @@ class TrackletPedestrianCV(Tracklet):
     def state_from_observation(self, observation: np.ndarray, init_state: Optional[np.ndarray] = None) -> np.ndarray:
         state = np.zeros((self.state_dims, ), dtype=np.float32) if init_state is None else init_state
         state[:self.obs_dims] = observation
-        # state[3] = angle_constraint(state[3])
+        state[3] = angle_constraint(state[3])
         return state
 
     def observation_from_state(self, state: np.ndarray) -> np.ndarray:
         observation = np.zeros((self.obs_dims, ), dtype=np.float32)
         observation = state[:self.obs_dims]
-        # observation[3] = angle_constraint(observation[3])
+        observation[3] = angle_constraint(observation[3])
         return observation
 
 class TrackletVehicleCTRV(Tracklet):
@@ -432,7 +432,7 @@ class TrackletVehicleCTRV(Tracklet):
           state: Union[Type[VehicleStateCV], np.ndarray]) -> np.ndarray:
         _pred_observation = state() if isinstance(state, Primitives) else state
         _pred_observation = _pred_observation[[0, 1, 2, 3, 4, 5, 6]] # x, y, z, yaw, l, b, h
-        # _pred_observation[3] = angle_constraint(_pred_observation[3])
+        _pred_observation[3] = angle_constraint(_pred_observation[3])
         return _pred_observation
 
     @classmethod
@@ -457,13 +457,13 @@ class TrackletVehicleCTRV(Tracklet):
     def state_from_observation(self, observation: np.ndarray, init_state: Optional[np.ndarray] = None) -> np.ndarray:
         state = np.zeros((self.state_dims, ), dtype=np.float32) if init_state is None else init_state
         state[:self.obs_dims] = observation
-        # state[3] = angle_constraint(state[3])
+        state[3] = angle_constraint(state[3])
         return state
 
     def observation_from_state(self, state: np.ndarray) -> np.ndarray:
         observation = np.zeros((self.obs_dims, ), dtype=np.float32)
         observation = state[:self.obs_dims]
-        # observation[3] = angle_constraint(observation[3])
+        observation[3] = angle_constraint(observation[3])
         return observation
 
 class TrackletVehicleAdaptiveCTRV(TrackletVehicleCTRV):

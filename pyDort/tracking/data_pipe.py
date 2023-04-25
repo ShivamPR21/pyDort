@@ -16,6 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
 import os
+import sys
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -36,6 +37,16 @@ from argoverse.utils.se3 import SE3
 from clort.clearn.data.dataframe import ArgoverseDataFrame, ArgoverseObjectDataFrame
 from clort.clearn.data.utils import get_object_patch_from_image
 
+# third_party = os.path.realpath(os.path.join(os.path.dirname(__name__), '../../third_party/Grad-PU/'))
+# sys.path.append(third_party)
+
+# GradPU imports
+# from args.pu1k_args import parse_pu1k_args
+# from args.pugan_args import parse_pugan_args
+# from args.utils import str2bool
+# from einops import rearrange
+# from models.P2PNet import P2PNet
+# from models.utils import *
 
 class ArgoverseTrackingInferenceDataset:
 
@@ -51,7 +62,9 @@ class ArgoverseTrackingInferenceDataset:
                  img_tr_ww : Tuple[float, float] = (0.7, 0.7),
                  discard_invalid_dfs : bool = True,
                  img_reshape : Tuple[int, int] = (200, 200),
-                 target_cls: Optional[List[str]] = ["PEDESTRIAN", "VEHICLE"]) -> None:
+                 target_cls: Optional[List[str]] = ["PEDESTRIAN", "VEHICLE"],
+                 upsample_cloud: bool = True,
+                 upsample_model: str = "pu1k") -> None:
 
         self.data_dir, self.dets_dump_dir = data_dir, dets_dump_dir
         self.log_id = log_id

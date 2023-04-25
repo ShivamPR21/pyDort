@@ -71,7 +71,7 @@ class PointCloudRepresentation(SimpleArgoverseDetectionRepresentation):
         features = []
         n_obj = len(data)
         for idx in range(0, n_obj, self.chunk_size):
-            l_idx, r_idx = idx, idx+min(n_obj, idx+self.chunk_size)
+            l_idx, r_idx = idx, min(n_obj, idx+self.chunk_size)
             feature_chunk = self.feature_extractor(self.data_prep(data[l_idx:r_idx], self.n_points))
             features += [feature_chunk]
         features = np.concatenate(features, axis=0)
@@ -106,5 +106,5 @@ class PointCloudRepresentation(SimpleArgoverseDetectionRepresentation):
         # raise NotImplementedError TODO:Remove excess code
 
         features: torch.Tensor = self.model(data)
-        features = features.detach().numpy()
+        features = features.detach().cpu().numpy()
         return features

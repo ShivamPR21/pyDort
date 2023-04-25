@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 temp_files/
-results/
+results*/
 output*

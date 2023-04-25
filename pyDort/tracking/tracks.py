@@ -39,12 +39,12 @@ class Track3D:
     count = 0
 
     def __init__(self,
-                id : int = None,
+                id : Optional[int] = None,
                 obj_type : str = 'pedestrian-cv',
                 dt : float = 0.5,
                 stale_lim : int = 5,
                 cache_lim : int = -1,
-                sem : Callable[..., Type[StateEvolution]] = None) -> None:
+                sem : Optional[Callable[..., Type[StateEvolution]]] = None) -> None:
 
         self.track_id = id if id is not None else Track3D.count
         Track3D.count += 1
@@ -62,7 +62,7 @@ class Track3D:
         self.missed_frames = 0
         self.updates_count = 0
 
-        self.sem : Type[StateEvolution] = sem
+        self.sem = sem
 
     def init(self, tracklet: Type[Tracklet]):
         info = tracklet.info

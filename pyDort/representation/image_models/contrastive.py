@@ -19,7 +19,6 @@ class ResNetSimCLR(nn.Module):
 
         self.backbone = self._get_basemodel(base_model)
         dim_mlp = self.backbone.fc.in_features
-        print(dim_mlp)
 
         # add mlp projection head
         self.backbone.fc = nn.Sequential(nn.Linear(dim_mlp, dim_mlp), nn.ReLU(), nn.Linear(dim_mlp, 128))
@@ -40,6 +39,7 @@ class ResnetSimCLRInference(nn.Module):
         self.model = ResNetSimCLR(base_model)
         self.model.load_state_dict(torch.load(self.weigths[base_model], map_location="cuda:0")["state_dict"])
 
+        self.model.layer4 = nn.Identity()
         self.model.backbone.fc = nn.Identity()
 
     def forward(self, x):
@@ -72,7 +72,7 @@ class ImageContrastiveRepresentation(SimpleArgoverseDetectionRepresentation):
         features = []
         n_obj = len(data)
         for idx in range(0, n_obj, self.chunk_size):
-            l_idx, r_idx = idx, idx+min(n_obj, idx+self.chunk_size)
+            l_idx, r_idx = idx, min(n_obj, idx+self.chunk_size)
             feature_chunk = self.feature_extractor(*self.data_prep(data[l_idx:r_idx]))
             features += [feature_chunk]
         features = np.concatenate(features, axis=0)

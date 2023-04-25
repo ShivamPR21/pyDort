@@ -56,7 +56,8 @@ def run_tracker(
     pcd_gpu: bool = False,
     agr: str = "max",
     im_chunk_size: int = 1,
-    pcd_chunk_size: int = 1
+    pcd_chunk_size: int = 1,
+    n_logs: int = 100
     ) -> None:
 
     uuid_gen = UUIDGeneration()
@@ -64,23 +65,23 @@ def run_tracker(
     dl = ArgoverseTrackingInferenceDataset(raw_data_dir,
                                            dets_dump_dir,
                                            log_id="",
-                                           lidar_points_thresh=30,
+                                           lidar_points_thresh=20,
                                            image_size_threshold=50,
                                            n_img_view_aug=7,
                                            aug_transforms=None,
                                            central_crop=True,
-                                           img_tr_ww=(0.9, 0.9),
+                                           img_tr_ww=(0.95, 0.95),
                                            discard_invalid_dfs=True,
                                            img_reshape=(64, 64),
                                            target_cls=target_cls)
 
     im_enc_model = ImageContrastiveRepresentation(im_model, im_gpu, agr, im_chunk_size)
-    pcd_enc_model = PointCloudRepresentation(pcd_model, pcd_gpu, pcd_chunk_size, n_points=30, k=10)
+    pcd_enc_model = PointCloudRepresentation(pcd_model, pcd_gpu, pcd_chunk_size, n_points=20, k=10)
     appearance_model = MultiModalRepresentation(im_enc_model, pcd_enc_model)
 
-    da_model = DataAssociation(9e-2, False, True, None, None, np.array([2, 1], dtype=np.float32))
+    da_model = DataAssociation(5e-1, True, True, None, None, np.array([1, 2], dtype=np.float32))
 
-    for i, log_id in tqdm(enumerate(dl.log_list)):
+    for i, log_id in tqdm(enumerate(dl.log_list[:min(len(dl.log_list), n_logs)])):
         # Init dataset with log_id
         dl.dataset_init(i)
         tracker = PyDort(max_age, dl.mdt, min_hits, appearance_model, da_model, FilterPyUKF, config_file)
@@ -152,6 +153,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--raw_data_dir", type=str,
         required=True, help="path to raw log data (including pose data) for validation or test set")
+    parser.add_argument("--n_logs", type=int, default=100,
+                        help="Number of logs to process.")
 
     parser.add_argument("--tracks_dump_dir", type=str,
         default='temp_files',
@@ -196,4 +199,5 @@ if __name__ == "__main__":
         agr=args.agr,
         im_chunk_size=args.im_chunk_size,
         pcd_chunk_size=args.pcd_chunk_size,
+        n_logs=args.n_logs
     )

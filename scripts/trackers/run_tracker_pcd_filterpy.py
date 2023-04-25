@@ -23,7 +23,7 @@ from typing import List
 import numpy as np
 from argoverse.utils.se2 import SE2
 from pyDort.helpers import UUIDGeneration, check_mkdir, read_json_file, save_json_dict
-from pyDort.representation import ResnetImageRepresentation
+from pyDort.representation import PointCloudRepresentation
 from pyDort.sem.data_association import DataAssociation
 from pyDort.sem.filterpy_ukf import FilterPyUKF
 from pyDort.tracking.data_pipe import ArgoverseTrackingInferenceDataset
@@ -46,10 +46,9 @@ def run_tracker(
     min_hits: int = 1,
     min_conf: float = 0.3,
     target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"],
-    model: str = "resnet18",
-    gpu: bool = False,
-    agr: str = "max",
-    chunk_size: int = 1,
+    pcd_model: str = "pointnet",
+    pcd_gpu: bool = False,
+    pcd_chunk_size: int = 1,
     n_logs: int = 100
     ) -> None:
 
@@ -68,7 +67,8 @@ def run_tracker(
                                            img_reshape=(64, 64),
                                            target_cls=target_cls)
 
-    appearance_model = ResnetImageRepresentation(model, None, gpu, agr, chunk_size)
+    appearance_model = PointCloudRepresentation(pcd_model, pcd_gpu, pcd_chunk_size, n_points=20, k=10)
+
     da_model = DataAssociation(5e-1, True, True, None, None, np.array([1, 2], dtype=np.float32))
 
     for i, log_id in tqdm(enumerate(dl.log_list[:min(len(dl.log_list), n_logs)])):
@@ -156,13 +156,11 @@ if __name__ == "__main__":
     parser.add_argument("--config_file", type=str,
         default=f'{Path(__file__).parent.resolve()}/../pyDort/tracking/conf.json',
         help="Config file, containing information about different parameters.")
-    parser.add_argument("--model", type=str,
-                        default="resnet18", help="Image model to be used for encodings.")
-    parser.add_argument("--gpu", action=argparse.BooleanOptionalAction,
+    parser.add_argument("--pcd_model", type=str,
+                        default="pointnet", help="Image model to be used for encodings.")
+    parser.add_argument("--pcd_gpu", action=argparse.BooleanOptionalAction,
                         help="If given and available gpu will be used.")
-    parser.add_argument("--agr", type=str, default="max",
-                        help="one of the : max, avg, median, mode")
-    parser.add_argument("--chunk_size", type=int, default=10,
+    parser.add_argument("--pcd_chunk_size", type=int, default=10,
                         help="Model chunk size")
 
     args = parser.parse_args()
@@ -176,9 +174,8 @@ if __name__ == "__main__":
         min_hits=args.min_hits,
         min_conf=args.min_conf,
         target_cls=args.target_cls,
-        model=args.model,
-        gpu=args.gpu,
-        agr=args.agr,
-        chunk_size=args.chunk_size,
+        pcd_model=args.pcd_model,
+        pcd_gpu=args.pcd_gpu,
+        pcd_chunk_size=args.pcd_chunk_size,
         n_logs=args.n_logs
     )

@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple, Union
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -116,6 +116,7 @@ class DataAssociation:
             M, N = M_st, N_st
 
         if self.state_aug and self.descriptor_aug:
+            print((M_dsc, N_dsc) , (M_st, N_st))
             assert ((M_dsc, N_dsc) == (M_st, N_st))
 
         # Handle zero detections or tracks
@@ -149,7 +150,7 @@ class DataAssociation:
     @staticmethod
     def state_data_association_costmatrix(dets : np.ndarray,
                                       trks : np.ndarray,
-                                      scm_w : Optional[np.ndarray] = None) -> np.ndarray:
+                                      scm_w : Optional[np.ndarray] = None) -> Union[Any, np.ndarray]:
         if scm_w is None:
             scm_w = np.ones((3, ), dtype=np.float32)/3
         else:
@@ -189,12 +190,13 @@ class DataAssociation:
                                       **kwargs) -> np.ndarray:
         # dets : [M, n]
         # trks : [N, n]
-        dsts /= (np.linalg.norm(dets, axis=1)+1e-10)
-        trks /= (np.linalg.norm(trks, axis=1)+1e-10)
+        dets /= (np.linalg.norm(dets, axis=1, keepdims=True)+1e-11)
+        trks /= (np.linalg.norm(trks, axis=1, keepdims=True)+1e-11)
+        # dets, trks = np.expand_dims(dets, axis=1), np.expand_dims(trks, axis=0)
+        # cost_matrix = np.linalg.norm(dets - trks, axis=2)
 
-        cost_matrix : np.ndarray = -dets.dot(trks.T) # [M, N] matrix
-        cost_matrix -= cost_matrix.min()
-        cost_matrix /= (cost_matrix.max()+1e-9)
+        cost_matrix : np.ndarray = 1-dets.dot(trks.T) # [M, N] matrix
+        cost_matrix /= (abs(cost_matrix.max())+1e-11)
 
         return cost_matrix
 
@@ -202,7 +204,7 @@ class DataAssociation:
         assert(cm.ndim == 2)
         # Normalize
         cm -= cm.min()
-        cm /= (cm.max()+1e-9)
+        cm /= (abs(cm.max())+1e-9)
 
         row_idxs, col_idxs = linear_sum_assignment(cm)
 
@@ -233,4 +235,4 @@ class DataAssociation:
         else:
             matches = np.concatenate(matches, axis=0)
 
-        return np.int32(matches), np.array(unmatched_detections, dtype=np.int32), np.array(unmatched_trackers, dtype=np.int32)
+        return np.array(matches, dtype=np.int32), np.array(unmatched_detections, dtype=np.int32), np.array(unmatched_trackers, dtype=np.int32)

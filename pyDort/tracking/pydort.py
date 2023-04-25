@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 from clort.clearn.data.dataframe import ArgoverseObjectDataFrame
+
 from pyDort.representation.base import DataRepresentation
 from pyDort.sem.data_association import DataAssociation
 from pyDort.sem.evolution import StateEvolution
@@ -24,7 +25,7 @@ class PyDort:
         self.dt = dt
         self.min_hits = min_hits
         self.track_type = track_type
-        self.tracks : List[track_type] = []
+        self.tracks : List[Any] = []
         self.frame_count = 0
         self.appearance_model = appearance_model
         self.da_model = da_model
@@ -67,7 +68,11 @@ class PyDort:
         trks_dsc = np.array(trks_dsc, dtype=np.float32) if len(trks_dsc) > 0 else np.empty((0, 1), dtype=np.float32)
         trks_st = np.array(trks_st, dtype=np.float32) if len(trks_st) > 0 else np.empty((0, 1), dtype=np.float32)
 
-        trks_dsc, trks_st = np.ma.compress_rows(np.ma.masked_invalid(trks_dsc)), np.ma.compress_rows(np.ma.masked_invalid(trks_st))
+        d_dsc, d_st = trks_dsc.shape[1], trks_st.shape[1]
+        trks_dsc_st = np.concatenate((trks_dsc, trks_st), axis=1)
+        trks_dsc_st = np.ma.compress_rows(np.ma.masked_invalid(trks_dsc_st))
+        trks_dsc, trks_st = trks_dsc_st[:, :d_dsc], trks_dsc_st[:, d_dsc:]
+        # trks_dsc, trks_st = np.ma.compress_rows(np.ma.masked_invalid(trks_dsc)), np.ma.compress_rows(np.ma.masked_invalid(trks_st))
 
         n_removed = self.remove_tracks_by_status(TrackStatus.Invalid)
         print(f'Number of invalid tracks removed: {n_removed}/{n_tracks}')

@@ -45,7 +45,8 @@ def run_tracker(
     max_age: int = 3,
     min_hits: int = 1,
     min_conf: float = 0.3,
-    target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"]
+    target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"],
+    n_logs: int = 100
     ) -> None:
 
     uuid_gen = UUIDGeneration()
@@ -53,7 +54,7 @@ def run_tracker(
     dl = ArgoverseTrackingInferenceDataset(raw_data_dir,
                                            dets_dump_dir,
                                            log_id="",
-                                           lidar_points_thresh=10,
+                                           lidar_points_thresh=20,
                                            image_size_threshold=50,
                                            n_img_view_aug=7,
                                            aug_transforms=None,
@@ -64,9 +65,9 @@ def run_tracker(
                                            target_cls=target_cls)
 
     appearance_model = SimpleArgoverseDetectionRepresentation()
-    da_model = DataAssociation(9e-2, False, True, None, None, np.array([1, 2], dtype=np.float32))
+    da_model = DataAssociation(3e-1, False, True, None, None, np.array([1, 2], dtype=np.float32))
 
-    for i, log_id in tqdm(enumerate(dl.log_list)):
+    for i, log_id in tqdm(enumerate(dl.log_list[:min(len(dl.log_list), n_logs)])):
         # Init dataset with log_id
         dl.dataset_init(i)
         tracker = PyDort(max_age, dl.mdt, min_hits, appearance_model, da_model, FilterPyUKF, config_file)
@@ -138,6 +139,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--raw_data_dir", type=str,
         required=True, help="path to raw log data (including pose data) for validation or test set")
+    parser.add_argument("--n_logs", type=int, default=100,
+                        help="Number of logs to process.")
 
     parser.add_argument("--tracks_dump_dir", type=str,
         default='temp_files',
@@ -161,5 +164,6 @@ if __name__ == "__main__":
         max_age=args.max_age,
         min_hits=args.min_hits,
         min_conf=args.min_conf,
-        target_cls=args.target_cls
+        target_cls=args.target_cls,
+        n_logs=args.n_logs
     )

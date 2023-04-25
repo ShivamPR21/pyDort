@@ -51,7 +51,7 @@ class ArgoverseTrackingInferenceDataset:
                  img_tr_ww : Tuple[float, float] = (0.7, 0.7),
                  discard_invalid_dfs : bool = True,
                  img_reshape : Tuple[int, int] = (200, 200),
-                 target_cls: List[str] = ["PEDESTRIAN", "VEHICLE"]) -> None:
+                 target_cls: Optional[List[str]] = ["PEDESTRIAN", "VEHICLE"]) -> None:
 
         self.data_dir, self.dets_dump_dir = data_dir, dets_dump_dir
         self.log_id = log_id
@@ -136,7 +136,7 @@ class ArgoverseTrackingInferenceDataset:
         self.mdt = -1
 
     def load_data_frame(self, idx : int) -> bool:
-        self.curr_frame_data : List[ArgoverseObjectDataFrame] = []
+        self.curr_frame_data = [] # empty current frame buffer
 
         assert(not self.n_frames is None and 0<=idx and idx < self.n_frames)
         timestamp = self.lidar_timestamps[idx]
@@ -167,9 +167,10 @@ class ArgoverseTrackingInferenceDataset:
         objects = self.tracking_loader.get_labels_at_lidar_timestamp(self.log_id, timestamp)
         for obj in objects:
             obj = json_label_dict_to_obj_record(obj)
-            if not obj.label_class in self.target_cls: continue
+            if (self.target_cls is not None) and (not obj.label_class in self.target_cls):
+                continue
 
-            df_obj = ArgoverseObjectDataFrame(timestamp, "-", augmentation=True,
+            df_obj = ArgoverseObjectDataFrame(timestamp, obj.track_id, augmentation=True,
                                               img_resize=self.img_reshape, n_images=self.n_img_view_aug)
 
             # Store label, and object dimensions
@@ -196,18 +197,25 @@ class ArgoverseTrackingInferenceDataset:
                                 cloud_thresh : int = 30) -> bool:
         obj_df.bbox = obj.as_3d_bbox()
         obj_df.bbox_global = self.city_to_egovehicle_se3_list[idx].transform_point_cloud(obj_df.bbox)
+        obj_df.local_to_global_transform = np.hstack(
+            (self.city_to_egovehicle_se3_list[idx].rotation.T,
+             self.city_to_egovehicle_se3_list[idx].translation.reshape((-1, 1))
+             ))
 
         # For lidar dataframe
         pcloud = self.__segment_cloud__(obj_df.bbox, df.lidar)
         if pcloud.shape[0] <= cloud_thresh:
             return False
 
-        pcloud -= pcloud.mean(axis=0, keepdims=True)
+        # @TODO: Point Cloud can't be centered,
+        # also store point cloud in global frame
+        # pcloud -= pcloud.mean(axis=0, keepdims=True)
 
         obj_df.set_lidar(pcloud)
+        obj_df.global_pcl = self.city_to_egovehicle_se3_list[idx].transform_point_cloud(pcloud)
 
         # For camera dataframe
-        img_cnt = 0;
+        img_cnt = 0
         for i, cam in enumerate(RING_CAMERA_LIST):
             calib = self.calib_data[cam]
             img = df.get_image(i)

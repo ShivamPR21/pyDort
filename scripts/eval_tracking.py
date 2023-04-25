@@ -270,8 +270,7 @@ def eval_tracks(
             acc_i.update(id_gts, id_tracks, dists_i)
             acc_o.update(id_gts, id_tracks, dists_o)
 
-    print(count_all)
-    print(acc_c.events.shape, acc_i.events.shape, acc_o.events.shape)
+    # print(count_all)
     if count_all == 0:
         # fix for when all hypothesis is empty,
         # pymotmetric currently doesn't support this, see https://github.com/cheind/py-motmetrics/issues/49

@@ -1,20 +1,3 @@
-'''
-Copyright (C) 2021  Shiavm Pandey
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-'''
-
 from enum import Enum
 from typing import Any, Dict, Optional, Type, Union
 
@@ -41,23 +24,7 @@ class Tracklet:
                  z_covar: Optional[np.ndarray] = None,
                  Q: Optional[np.ndarray] = None,
                  descriptor: Optional[np.ndarray] = None) -> None:
-        """_summary_
 
-        Parameters
-        ----------
-        state : Optional[Union[Type[Primitives], np.ndarray]], optional
-            _description_, by default None
-        observation : Optional[Union[Type[Primitives], np.ndarray]], optional
-            _description_, by default None
-        x_covar : Optional[np.ndarray], optional
-            _description_, by default None
-        z_covar : Optional[np.ndarray], optional
-            _description_, by default None
-        Q : Optional[np.ndarray], optional
-            _description_, by default None
-        descriptor : Optional[np.ndarray], optional
-            _description_, by default None
-        """
         self._state : np.ndarray = state() if isinstance(state, Primitives) else state
 
         self._observation : np.ndarray = observation() if isinstance(observation, Primitives) else observation
@@ -77,29 +44,18 @@ class Tracklet:
                 z_covar : Optional[np.ndarray] = None,
                 Q : Optional[np.ndarray] = None,
                 descriptor: Optional[np.ndarray] = None) -> None:
-        """_summary_
-
-        Parameters
-        ----------
-        state : Optional[Union[Type[Primitives], np.ndarray]], optional
-            _description_, by default None
-        observation : Optional[Union[Type[Primitives], np.ndarray]], optional
-            _description_, by default None
-        x_covar : Optional[np.ndarray], optional
-            _description_, by default None
-        z_covar : Optional[np.ndarray], optional
-            _description_, by default None
-        Q : Optional[np.ndarray], optional
-            _description_, by default None
-        descriptor : Optional[np.ndarray], optional
-            _description_, by default None
-        """
-        if (state is not None) : self._state = state
-        if (observation is not None) : self._observation = observation
-        if (x_covar is not None) : self._x_covar = x_covar
-        if (z_covar is not None) : self._z_covar = z_covar
-        if (Q is not None) : self._Q = Q
-        if (descriptor is not None) : self.dsc = descriptor
+        if (state is not None):
+            self._state = state
+        if (observation is not None):
+            self._observation = observation
+        if (x_covar is not None):
+            self._x_covar = x_covar
+        if (z_covar is not None):
+            self._z_covar = z_covar
+        if (Q is not None):
+            self._Q = Q
+        if (descriptor is not None):
+            self.dsc = descriptor
 
     def set_status(self, status : TrackletType):
         self.status = status
@@ -165,8 +121,10 @@ class Tracklet:
 
     @classmethod
     def phi_inv(cls, state : Union[Type[Primitives], np.ndarray], hat_state : Union[Type[Primitives], np.ndarray]) -> np.ndarray:
-        if isinstance(state, Primitives): state = state()
-        if isinstance(hat_state, Primitives): hat_state = hat_state()
+        if isinstance(state, Primitives):
+            state = state()
+        if isinstance(hat_state, Primitives):
+            hat_state = hat_state()
 
         xi = np.diag(np.square(state - hat_state))
 

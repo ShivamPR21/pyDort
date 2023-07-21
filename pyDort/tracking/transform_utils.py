@@ -4,10 +4,11 @@ import copy
 from typing import Tuple
 
 import numpy as np
-from argoverse.utils.se2 import SE2
-from argoverse.utils.se3 import SE3
 from numba import jit
 from scipy.spatial.transform import Rotation
+
+from .se2 import SE2
+from .se3 import SE3
 
 
 def rotmat2d(theta: float) -> np.ndarray:
@@ -193,12 +194,28 @@ def yaw_from_bbox_corners(det_corners: np.ndarray) -> float:
     yaw = np.arctan2(dy, dx)
     return yaw
 
-def bbox_3d_from_8corners(det_corners:np.ndarray, dims:np.ndarray) -> np.ndarray:
+def bbox_dims(det_corners: np.ndarray) -> np.ndarray:
+    height = np.linalg.norm(det_corners[[2, 3, 6, 7], :].mean(axis=0) - det_corners[[0, 1, 4, 5], :].mean(axis=0))
+    length = np.linalg.norm(det_corners[:4, :].mean(axis=0) - det_corners[4:, :].mean(axis=0))
+    width = np.linalg.norm(det_corners[[1, 2, 5, 6], :].mean(axis=0) - det_corners[[0, 3, 4, 7], :].mean(axis=0))
+    return np.array([length, width, height], dtype=np.float32)
+
+def bbox_3d_from_8corners(det_corners:np.ndarray) -> np.ndarray:
     ego_xyz = np.mean(det_corners, axis=0)
 
     yaw = yaw_from_bbox_corners(det_corners)
-    bbox = np.array([ego_xyz[0], ego_xyz[1], ego_xyz[2], yaw, *dims.tolist()], dtype=np.float32)
+    bbox = np.array([ego_xyz[0], ego_xyz[1], ego_xyz[2], yaw, *(bbox_dims(det_corners).tolist())], dtype=np.float32)
     return bbox
+
+def batch_bbox_3d_from_8corners(det_corners:np.ndarray) -> np.ndarray:
+    assert(det_corners.ndim == 3)
+    batch_size = det_corners.shape[0]
+
+    bboxs = np.zeros((batch_size, 7), dtype=np.float32)
+    for i in range(batch_size):
+        bboxs[i, :] = bbox_3d_from_8corners(det_corners[i, :, :])
+
+    return bboxs
 
 def angle_constraint(theta:float) -> float:
     if theta >= np.pi:

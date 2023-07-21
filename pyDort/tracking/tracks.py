@@ -1,22 +1,5 @@
-'''
-Copyright (C) 2021  Shiavm Pandey
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-'''
-
 from enum import Enum
-from typing import Callable, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
 import numpy as np
 
@@ -44,7 +27,8 @@ class Track3D:
                 dt : float = 0.5,
                 stale_lim : int = 5,
                 cache_lim : int = -1,
-                sem : Optional[Callable[..., Type[StateEvolution]]] = None) -> None:
+                sem : Optional[Callable[..., Type[StateEvolution]]] = None
+                ) -> None:
 
         self.track_id = id if id is not None else Track3D.count
         Track3D.count += 1
@@ -64,6 +48,8 @@ class Track3D:
 
         self.sem = sem
 
+        self.dsc : List[Any] = [None, None]
+
     def init(self, tracklet: Type[Tracklet]):
         info = tracklet.info
         # info['alpha'] = np.zeros((tracklet.state_dims,))+1e-3
@@ -75,9 +61,6 @@ class Track3D:
 
         self.status = TrackStatus.Init
 
-    def dsc_propagation(self) -> None:
-        return self.descriptor(state_aug=False)
-
     def propagate(self, **kwargs) -> None:
         self.status = TrackStatus.Active
 
@@ -87,7 +70,6 @@ class Track3D:
             self.status = TrackStatus.Missing
 
         self.sem.propagate(**kwargs)
-        dsc, _ = self.dsc_propagation() # state being stored already in sem module
 
         tracklet = self.tracklet_class(
             self.sem.state,
@@ -95,7 +77,7 @@ class Track3D:
             self.sem.state_covar,
             self.sem.obs_covar,
             self.sem.process_noise,
-            dsc)
+            None)
 
         tracklet.set_status(TrackletType.Dummy)
         if (self.stale_lim - self.missed_frames <= -1):
@@ -106,29 +88,18 @@ class Track3D:
         self.tracklet_count += 1
         self.track.put(tracklet)
 
-    def update(self, observation: np.ndarray, descriptor: Optional[np.ndarray] = None):
+    def update(self, observation: np.ndarray):
 
         self.sem.update(observation)
         self.track[-1].update(self.sem.state,
                               observation,
                               self.sem.state_covar,
-                              descriptor=descriptor)
+                              descriptor=None)
 
         self.missed_frames = 0
         self.updates_count += 1
         self.status = TrackStatus.Active
         self.track[-1].set_status(TrackletType.Real)
-
-    def descriptor(self, state_aug : bool=True) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-
-        state, dsc = None, None
-
-        if self.track[-1].descriptor is not None:
-            dsc = self.track[-1].descriptor.reshape((-1, 1))
-
-        if state_aug:
-            state = self.state[:7].reshape((-1, 1))
-        return dsc, state
 
     @property
     def state(self) -> np.ndarray:

@@ -145,8 +145,8 @@ class PyDort:
                 d = matched[np.where(matched[:,1]==t)[0],0][0]     # a list of index
                 try:
                     trk.update(bboxs_3d[d, :])
-                    trk.dsc[0] = self.get_updated_dsc(dets_dsc1[d, :, :], trks_dsc1[t, :, :]) if dets_dsc1 is not None and trks_dsc1 is not None else None
-                    trk.dsc[1] = self.get_updated_dsc(dets_dsc2[d, :, :], trks_dsc2[t, :, :]) if dets_dsc2 is not None and trks_dsc2 is not None else None
+                    trk.dsc[0] = self.get_updated_dsc(dets_dsc1[d, :], trks_dsc1[t, :, :]) if dets_dsc1 is not None and trks_dsc1 is not None else None
+                    trk.dsc[1] = self.get_updated_dsc(dets_dsc2[d, :], trks_dsc2[t, :, :]) if dets_dsc2 is not None and trks_dsc2 is not None else None
                 except RuntimeError:
                     # Put descriptor to unmatched detections
                     unmatched_dets = np.append(unmatched_dets, [d])
@@ -182,8 +182,8 @@ class PyDort:
             tracklet.update(state=tracklet.state_from_observation(tracklet.observation, x_init))
 
             trk.init(tracklet) # type: ignore # Initialize the track
-            trk.dsc[0] = dets_dsc1[i, :, :] if dets_dsc1 is not None else None
-            trk.dsc[1] = dets_dsc2[i, :, :] if dets_dsc2 is not None else None
+            trk.dsc[0] = self.get_updated_dsc(dets_dsc1[i, :], None) if dets_dsc1 is not None else None
+            trk.dsc[1] = self.get_updated_dsc(dets_dsc2[i, :], None) if dets_dsc2 is not None else None
 
             self.tracks.append(trk) # Add track to track list
 
@@ -201,27 +201,36 @@ class PyDort:
 
         return ret
 
-    def get_updated_dsc(self, dets_dsc: np.ndarray, trks_dsc: np.ndarray):
+    def get_updated_dsc(self, dets_dsc: np.ndarray, trks_dsc: np.ndarray | None):
         # trks_dsc -> [q, n]
         # dets_dsc -> [n]
-        if dets_dsc.ndim == 1:
-            dets_dsc = dets_dsc.reshape((-1, 1))
+
+        if trks_dsc is None:
+            reps = np.zeros((self.q, dets_dsc.shape[0]), dtype=np.float32)
+            reps[0, :] = dets_dsc
+            reps[0, :] /= (np.linalg.norm(reps[0, :]) + 1e-9)
+            return reps
+
+        dets_dsc = dets_dsc.reshape((1, -1))
+        assert (trks_dsc is not None)
 
         if self.rep_update == 'replace':
             return dets_dsc
         elif self.rep_update == 'momentum':
-            return (0.7*dets_dsc + 0.3*trks_dsc)
+            reps = (0.7*dets_dsc + 0.3*trks_dsc)
+            reps /= (np.linalg.norm(reps, axis=1, keepdims=True) + 1e-9)
+            return reps
         elif self.rep_update == 'similarity':
             reps = trks_dsc
-            alpha = np.clip(dets_dsc @ trks_dsc, self.a_t[0], self.a_t[1]) # [q, 1]
+            alpha = np.clip(trks_dsc @ dets_dsc.T, self.a_t[0], self.a_t[1]) # [q, 1]
 
             for q in range(self.q):
                 if q == 0:
-                    reps[q, :] = (1. - alpha[q]) * trks_dsc[q, :] + alpha[q] * dets_dsc[:, 0]
+                    reps[q, :] = (1. - alpha[q]) * trks_dsc[q, :] + alpha[q] * dets_dsc[0, :]
                 else:
                     sf = max(q+1, 3)
                     beta = np.clip(trks_dsc[q-1, :] @ trks_dsc[q, :], self.b_t[0], self.b_t[1])
-                    reps[q, :] = (1. - (alpha[q] + beta)/sf) * trks_dsc[q, :] + (beta/sf) * trks_dsc[q-1, :] + (alpha[q]/sf) * dets_dsc[:, 0]
+                    reps[q, :] = (1. - (alpha[q] + beta)/sf) * trks_dsc[q, :] + (beta/sf) * trks_dsc[q-1, :] + (alpha[q]/sf) * dets_dsc[0, :]
 
             reps /= (np.linalg.norm(reps, axis=1, keepdims=True) + 1e-9)
             return reps

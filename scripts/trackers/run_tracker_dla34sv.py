@@ -96,7 +96,7 @@ def run_tracker(cfg: DictConfig) -> None:
                              min_hits=cfg.tracker.min_hits,
                              sem=FilterPyUKF,
                              config_file=cfg.tracker.sem_cfg,
-                             rep_update=cfg.tracker.update,
+                             rep_update=cfg.tracker.rep_update,
                              Q=cfg.tracker.Q,
                              alpha_thresh=cfg.tracker.alpha_t,
                              beta_thresh=cfg.tracker.beta_t,

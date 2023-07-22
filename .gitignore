@@ -133,3 +133,4 @@ results*/
 output*
 outputs/
 **/wandb/
+out.txt

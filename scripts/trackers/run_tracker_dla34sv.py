@@ -50,7 +50,7 @@ def run_tracker(cfg: DictConfig) -> None:
                     target_cls=cfg.data.target_cls,
                     distance_threshold=cfg.data.distance_threshold,
                     splits=cfg.data.split,
-                    img_size=cfg.data.img_shape,
+                    img_size=tuple(cfg.data.img_shape),
                     point_cloud_size=cfg.data.pcl_quant,
                     in_global_frame=cfg.data.global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,

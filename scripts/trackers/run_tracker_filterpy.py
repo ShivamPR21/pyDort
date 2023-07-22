@@ -69,7 +69,6 @@ def run_tracker(cfg: DictConfig) -> None:
 
         if (len(track_idxs) == 0):
             continue
-        track_uids = [dataset.idx_to_tracks_map[log_id][idx] for idx in track_idxs]
         track_cls = (np.array(dataset.obj_cls, dtype=str)[cls_idxs]).tolist()
 
         # Tracking start
@@ -115,7 +114,7 @@ def run_tracker(cfg: DictConfig) -> None:
         dets_w_info = tracker.update(bboxs.detach().cpu().numpy(), [None, None], track_cls)
 
         tracked_labels = []
-        for i, det in enumerate(dets_w_info):
+        for _i, det in enumerate(dets_w_info):
             # move city frame tracks back to ego-vehicle frame
             xyz_city = np.array([det[0], det[1], det[2]]).reshape(1,3)
             city_yaw_object = det[3]
@@ -140,9 +139,9 @@ def run_tracker(cfg: DictConfig) -> None:
             "length": float(det[4]),
             "width": float(det[5]),
             "height": float(det[6]),
-            "track_label_uuid": uuid_gen.get_uuid(det[7]+1) if len(det) >= 9 else track_uids[i],
+            "track_label_uuid": uuid_gen.get_uuid(det[7]+1),
             "timestamp": int(current_lidar_timestamp),
-            "label_class": det[8] if len(det) >= 9 else track_cls[i]
+            "label_class": det[8]
             })
 
         label_dir = os.path.join(cfg.data.tracks_dump_dir, cur_log, "per_sweep_annotations_amodal")

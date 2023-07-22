@@ -23,6 +23,7 @@ class Track3D:
 
     def __init__(self,
                 id : Optional[int] = None,
+                obj_category: str = 'PEDESTRIAN',
                 obj_type : str = 'pedestrian-cv',
                 dt : float = 0.5,
                 stale_lim : int = 5,
@@ -34,6 +35,7 @@ class Track3D:
         Track3D.count += 1
 
         assert(obj_type in tracklets)
+        self.obj_category = obj_category
         self.obj_class = obj_type
         self.tracklet_class : Type[Tracklet] = tracklets[obj_type]
         self.dt = dt

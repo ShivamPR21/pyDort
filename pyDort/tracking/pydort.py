@@ -163,7 +163,7 @@ class PyDort:
         for i in unmatched_dets:        # a scalar of index
             obj_class = self.ocmt[_obj_cls[i]]
 
-            trk : Track3D = self.track_type(obj_type=obj_class, dt=self.dt, stale_lim=self.max_age, sem=self.sem) # type: ignore
+            trk : Track3D = self.track_type(obj_category=_obj_cls[i], obj_type=obj_class, dt=self.dt, stale_lim=self.max_age, sem=self.sem) # type: ignore
 
             state_dims, obs_dims = trk.tracklet_class().state_dims, trk.tracklet_class().obs_dims # type: ignore
             x_covar, z_covar, Q = None, None, None
@@ -198,7 +198,7 @@ class PyDort:
             if trk.tracklet_count >= self.min_hits:
                 d = trk.track[-1].observation_from_state(trk.state).tolist() # type: ignore
                 d.append(trk.track_id)
-                d.append(self.ocmt_rev_map[trk.obj_class])
+                d.append(trk.obj_category)
                 ret.append(d)
 
         return ret
@@ -241,13 +241,25 @@ class PyDort:
 
         cost_m /= np.sum(self.trks_center_w)
 
+        # Normalize
+        if not (M == 0 or N == 0):
+            cost_m -= cost_m.min()
+            cost_m /= (abs(cost_m.max())+1e-9)
+
         return cost_m
 
     def cost_matrix_state(self, M:int, N:int, dets:np.ndarray, trks:np.ndarray, distance:str) -> np.ndarray:
         cost_m = np.zeros((M, N), dtype=np.float32)
+
         for m in range(M):
             for n in range(N):
                 cost_m[m, n] = get_distance(dets[m, :], trks[n, :], distance)
+
+        # Normalize
+        if not (M == 0 or N == 0):
+            cost_m -= cost_m.min()
+            cost_m /= (abs(cost_m.max())+1e-9)
+
         return cost_m
 
     def remove_tracks_by_status(self, status:TrackStatus) -> int:

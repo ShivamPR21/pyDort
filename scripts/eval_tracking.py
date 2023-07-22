@@ -148,6 +148,8 @@ def eval_tracks(cfg: DictConfig) -> None:
     count_all: int = 0
     uid_to_int = IntIdFromString()
 
+    logger.info(f'{cfg.categories = }')
+
     if cfg.diffatt is not None:
 
         pkl_path = os.path.join(os.path.dirname(__file__), "argo_assets", "dict_att_all.pkl")

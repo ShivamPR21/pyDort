@@ -2,5 +2,7 @@ info: "SV DLA34 | Single Center | Element Loss"
 
 sv_enc: 256
 
+device: "cuda"
+
 run_path: "shivampr21/CLORTJSR/0ghgjo01"
 model_file: "models/model_10.pth"

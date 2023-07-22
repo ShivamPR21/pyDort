@@ -1,15 +1,14 @@
 import json
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
 import numpy as np
-import torch.nn as nn
 from scipy.optimize import linear_sum_assignment
 
-from pyDort.sem.data_association import get_distance, get_distance_iou_3d
+from pyDort.sem.data_association import get_distance
 from pyDort.sem.evolution import StateEvolution
 
 from .tracks import Track3D, TrackStatus
-from .transform_utils import batch_bbox_3d_from_8corners, bbox_3d_from_8corners
+from .transform_utils import batch_bbox_3d_from_8corners
 
 
 class PyDort:
@@ -49,7 +48,6 @@ class PyDort:
         self.conf : Dict[str, Union[Dict, Any]] = json.load(self.config_file)
 
         self.ocmt : Dict[str, str] = self.conf["obj_class-motion_type"]
-        self.ocmt_rev_map = {value: key for key, value in self.conf["obj_class-motion_type"].items()}
 
     def update(self, bboxs: np.ndarray, reprs: List[np.ndarray | None], _obj_cls: List[str]) -> List[List[Any]]:
         # self.tracks = [] # Uncomment to see detections #TODO: Be cautious
@@ -202,7 +200,6 @@ class PyDort:
                 ret.append(d)
 
         return ret
-
 
     def get_updated_dsc(self, dets_dsc: np.ndarray, trks_dsc: np.ndarray):
         # trks_dsc -> [q, n]

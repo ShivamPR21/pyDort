@@ -1,4 +1,3 @@
-import argparse
 import os
 from pathlib import Path
 from typing import List
@@ -12,7 +11,13 @@ from clort.model import CLModel, DLA34Encoder
 from omegaconf import DictConfig, ListConfig
 from tqdm import tqdm
 
-from pyDort.helpers import UUIDGeneration, check_mkdir, read_json_file, save_json_dict
+from pyDort.helpers import (
+    UUIDGeneration,
+    check_mkdir,
+    flatten_cfg,
+    read_json_file,
+    save_json_dict,
+)
 from pyDort.sem.filterpy_ukf import FilterPyUKF
 from pyDort.tracking.pydort import PyDort
 from pyDort.tracking.se2 import SE2
@@ -26,8 +31,15 @@ from pyDort.tracking.transform_utils import (
 )
 
 
-@hydra.main(version_base=None, config_path="../conf", config_name="clort_config")
+@hydra.main(version_base=None, config_path="../conf", config_name="dla34sv_config")
 def run_tracker(cfg: DictConfig) -> None:
+    wandb.login()
+
+    wandb.init(
+        project=cfg.wb.project,
+
+        config=flatten_cfg(cfg)
+    )
 
     uuid_gen = UUIDGeneration()
 
@@ -40,14 +52,18 @@ def run_tracker(cfg: DictConfig) -> None:
                     splits=cfg.data.split,
                     img_size=cfg.data.img_shape,
                     point_cloud_size=cfg.data.pcl_quant,
-                    in_global_frame=cfg.data.in_global_frame,
+                    in_global_frame=cfg.data.global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,
-                    image=cfg.data.image, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
+                    image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
                     pcl_transform=None)
 
-    appearance_model = DLA34Encoder(out_dim=256)
-    appearance_model = appearance_model.to('cuda')
+    appearance_model = DLA34Encoder(out_dim=cfg.am.sv_enc)
+    ckpt = torch.load(wandb.restore(name=cfg.am.model_file, run_path=cfg.am.run_path, replace=True).name)
+    appearance_model.load_state_dict(ckpt["enc"])
+    model_device = cfg.am.device
+
+    appearance_model = appearance_model.to(model_device)
     appearance_model.eval()
 
     cur_log = None
@@ -65,44 +81,52 @@ def run_tracker(cfg: DictConfig) -> None:
         city_SE3_egovehicle = SE3(R.T, t)
         current_lidar_timestamp = np.asanyarray(frame_log['timestamp'], dtype=np.uint64) # type: ignore
 
-        run.set_description(f'Log Id: {cur_log}')
-
         pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz = data
 
-        if (len(track_idxs) == 0):
-            continue
-        track_uids = [dataset.idx_to_tracks_map[log_id][idx] for idx in track_idxs]
+        # if (len(track_idxs) == 0):
+        #     continue
+
         track_cls = (np.array(dataset.obj_cls, dtype=str)[cls_idxs]).tolist()
 
         # Tracking start
         log_id = log_id.split("_")[-1]
         if log_id != cur_log:
-            tracker = PyDort()
+            tracker = PyDort(max_age=cfg.tracker.max_age,
+                             dt=1.,
+                             min_hits=cfg.tracker.min_hits,
+                             sem=FilterPyUKF,
+                             config_file=cfg.tracker.sem_cfg,
+                             rep_update=cfg.tracker.update,
+                             Q=cfg.tracker.Q,
+                             alpha_thresh=cfg.tracker.alpha_t,
+                             beta_thresh=cfg.tracker.beta_t,
+                             state_w=cfg.tracker.state_w,
+                             dsc_w=cfg.tracker.dsc_w,
+                             cm_fusion_w=cfg.tracker.cm_fusion_w,
+                             trks_center_w=cfg.tracker.track_center_momentum,
+                             matching_threshold=cfg.tracker.matching_threshold)
             cur_log = log_id
 
-        pcls = pcls.to('cuda') if isinstance(pcls, torch.Tensor) else pcls
-        imgs = imgs.to('cuda') if isinstance(imgs, torch.Tensor) else imgs
-        bboxs = bboxs.to('cuda') if isinstance(bboxs, torch.Tensor) else bboxs
+        run.set_description(f'Log Id: {cur_log}')
 
-        mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls, pcls_sz, imgs, imgs_sz, bboxs, frame_sz)
         encoding = None
-        if mmc_e is not None:
-            encoding = mmc_e
-        elif mm_e is not None:
-            encoding = mm_e
-        elif pc_e is not None:
-            encoding = pc_e
-        elif mv_e is not None:
-            encoding = mv_e
-        else:
-            raise NotImplementedError("Encoder resolution failed.")
+        if (len(track_idxs) != 0):
+            imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
 
-        assert(encoding is not None)
+            encoding = appearance_model(imgs, imgs_sz)
+            encoding = encoding.detach().cpu().numpy() # go to cpu for encoding
+            bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
+        else:
+            encoding = np.empty((0, 1))
+            bboxs = np.empty((0, 8, 3))
+
+
+        # assert(encoding is not None)
         assert(tracker is not None)
-        dets_w_info = tracker.update(bboxs.detach().cpu().numpy(), [encoding.detach().cpu().numpy(), None], track_cls)
+        dets_w_info = tracker.update(bboxs, [encoding, None], track_cls)
 
         tracked_labels = []
-        for i, det in enumerate(batch_bbox_3d_from_8corners(bboxs.detach().cpu().numpy())):
+        for _i, det in enumerate(dets_w_info):
             # move city frame tracks back to ego-vehicle frame
             xyz_city = np.array([det[0], det[1], det[2]]).reshape(1,3)
             city_yaw_object = det[3]
@@ -127,9 +151,9 @@ def run_tracker(cfg: DictConfig) -> None:
             "length": float(det[4]),
             "width": float(det[5]),
             "height": float(det[6]),
-            "track_label_uuid": uuid_gen.get_uuid(det[7]+1) if len(det) >= 9 else track_uids[i],
+            "track_label_uuid": uuid_gen.get_uuid(det[7]+1),
             "timestamp": int(current_lidar_timestamp),
-            "label_class": det[8] if len(det) >= 9 else track_cls[i]
+            "label_class": det[8]
             })
 
         label_dir = os.path.join(cfg.data.tracks_dump_dir, cur_log, "per_sweep_annotations_amodal")

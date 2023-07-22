@@ -2,3 +2,4 @@ defaults:
   - am: sv_enc
   - data: argo_mv
   - tracker: clort_sv_dla34
+  - wb: clort_jsr_eval

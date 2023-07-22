@@ -100,16 +100,16 @@ class PyDort:
 
         trks_dsc1 = np.concatenate(trks_dsc1, axis=0) if trks_dsc1 != [] else None
         trks_dsc2 = np.concatenate(trks_dsc2, axis=0) if trks_dsc2 != [] else None
-        trks_st = np.concatenate(trks_st, axis=0)
+        trks_st = np.concatenate(trks_st, axis=0) if trks_st != [] else np.empty((0, 1))
 
         assert(len(reprs) == 2)
         dets_dsc1, dets_dsc2 = reprs
+        bboxs_3d = batch_bbox_3d_from_8corners(bboxs)
 
-        M, N = trks_st.shape[0], trks_st.shape[0]
+        M, N = bboxs_3d.shape[0], trks_st.shape[0]
 
         # Compute cost matrix
         ## State cost matrix
-        bboxs_3d = batch_bbox_3d_from_8corners(bboxs)
         cm_centroid = self.cost_matrix_state(M, N, bboxs_3d, trks_st, 'centroid')
         cm_iou = self.cost_matrix_state(M, N, bboxs_3d, trks_st, 'iou')
         cm_yaw = self.cost_matrix_state(M, N, bboxs_3d, trks_st, 'orientation')
@@ -197,9 +197,8 @@ class PyDort:
         for trk in self.tracks:
             if trk.tracklet_count >= self.min_hits:
                 d = trk.track[-1].observation_from_state(trk.state).tolist() # type: ignore
-                idx = trk.track_id
-                obj_class = self.ocmt_rev_map[trk.obj_class]
-                d.append([idx, obj_class])
+                d.append(trk.track_id)
+                d.append(self.ocmt_rev_map[trk.obj_class])
                 ret.append(d)
 
         return ret
@@ -262,6 +261,11 @@ class PyDort:
 
     def solve(self, M:int, N:int, cm:np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         assert(cm.ndim == 2)
+
+        # Handle zero detections or tracks
+        if M == 0 or N == 0:
+            return np.empty((0,2), dtype=np.int32), np.arange(M, dtype=np.int32), np.arange(N, dtype=np.int32)
+
         # Normalize
         cm -= cm.min()
         cm /= (abs(cm.max())+1e-9)

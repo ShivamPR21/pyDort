@@ -54,7 +54,8 @@ if __name__ == "__main__":
     p_df, v_df = [], []
     for dir in os.listdir(args.results_dir):
         dir_path = os.path.join(args.results_dir, dir)
-        if not os.path.isdir(dir_path): continue
+        if not os.path.isdir(dir_path):
+            continue
 
         for part in os.listdir(dir_path):
             test_dir_path = os.path.join(dir_path, part)

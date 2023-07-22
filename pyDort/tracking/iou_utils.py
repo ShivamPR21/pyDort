@@ -1,55 +1,54 @@
 import numpy as np
-from numba import jit
 from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon
 
 
 def shapely_polygon_intersection(poly1: np.ndarray, poly2: np.ndarray) -> float:
-    """
-        Args:
-        -   poly1: vertices must be in sequential order
-        -   poly2: vertices must be in sequential order
-        Returns:
-        -   float representing area of intersection
-    """
+    # """
+    #     Args:
+    #     -   poly1: vertices must be in sequential order
+    #     -   poly2: vertices must be in sequential order
+    #     Returns:
+    #     -   float representing area of intersection
+    # """
     poly1 = Polygon(poly1)
     poly2 = Polygon(poly2)
     return poly1.intersection(poly2).area
 
 
 def shapely_polygon_area(poly: np.ndarray) -> float:
-    """
-        Args:
-        -   poly: vertices must be in sequential order
-        Returns:
-        -   float representing polygon's area
-    """
+    # """
+    #     Args:
+    #     -   poly: vertices must be in sequential order
+    #     Returns:
+    #     -   float representing polygon's area
+    # """
     return Polygon(poly).area
 
 
 def compute_iou_2d(bbox1: np.ndarray, bbox2: np.ndarray) -> float:
-    """
-        Args:
-        -   bbox1: vertices must be in sequential order
-        -   bbox2: vertices must be in sequential order
-        Returns:
-        -   iou_2d: intersection over union
-    """
+    # """
+    #     Args:
+    #     -   bbox1: vertices must be in sequential order
+    #     -   bbox2: vertices must be in sequential order
+    #     Returns:
+    #     -   iou_2d: intersection over union
+    # """
     inter_area = shapely_polygon_intersection(bbox1, bbox2)
     iou_2d = inter_area / (shapely_polygon_area(bbox1) + shapely_polygon_area(bbox2) - inter_area)
     return iou_2d
 
 
 def iou3d(corners1, corners2):
-    ''' Compute 3D bounding box IoU.
-        Args:
-        -   corners1: numpy array (8,3), assume up direction is negative Y
-        -   corners2: numpy array (8,3), assume up direction is negative Y
+    # ''' Compute 3D bounding box IoU.
+    #     Args:
+    #     -   corners1: numpy array (8,3), assume up direction is negative Y
+    #     -   corners2: numpy array (8,3), assume up direction is negative Y
 
-        Returns:
-        -   iou: 3D bounding box IoU
-        -   iou_2d: bird's eye view 2D bounding box IoU
-    '''
+    #     Returns:
+    #     -   iou: 3D bounding box IoU
+    #     -   iou_2d: bird's eye view 2D bounding box IoU
+    # '''
     # corner points are in counter clockwise order
     rect1 = [(corners1[i,0], corners1[i,1]) for i in range(3,-1,-1)]
     rect2 = [(corners2[i,0], corners2[i,1]) for i in range(3,-1,-1)]
@@ -70,31 +69,26 @@ def iou3d(corners1, corners2):
 
 
 def compute_iou_2d_bboxes(corners1, corners2):
-    """
-    """
     rect1 = [(corners1[i,0], corners1[i,1]) for i in range(3,-1,-1)]
     rect2 = [(corners2[i,0], corners2[i,1]) for i in range(3,-1,-1)]
     return compute_iou_2d(rect1, rect2)
 
 
-@jit
 def poly_area(x,y):
     return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
-@jit
 def box3d_vol(corners):
-    ''' corners: (8,3) no assumption on axis direction '''
+    # ''' corners: (8,3) no assumption on axis direction '''
     a = np.sqrt(np.sum((corners[0,:] - corners[1,:])**2))
     b = np.sqrt(np.sum((corners[1,:] - corners[2,:])**2))
     c = np.sqrt(np.sum((corners[0,:] - corners[4,:])**2))
     return a*b*c
 
-@jit
 def convex_hull_intersection(p1, p2):
-    """ Compute area of two convex hull's intersection area.
-        p1,p2 are a list of (x,y) tuples of hull vertices.
-        return a list of (x,y) for the intersection and its volume
-    """
+    # """ Compute area of two convex hull's intersection area.
+    #     p1,p2 are a list of (x,y) tuples of hull vertices.
+    #     return a list of (x,y) for the intersection and its volume
+    # """
     inter_p = polygon_clip(p1,p2)
     if inter_p is not None:
         hull_inter = ConvexHull(inter_p)
@@ -103,15 +97,15 @@ def convex_hull_intersection(p1, p2):
         return None, 0.0
 
 def polygon_clip(subjectPolygon, clipPolygon):
-   """ Clip a polygon with another polygon.
-   Args:
-     subjectPolygon: a list of (x,y) 2d points, any polygon.
-     clipPolygon: a list of (x,y) 2d points, has to be *convex*
-   Note:
-     **points have to be counter-clockwise ordered**
-   Return:
-     a list of (x,y) vertex point for the intersection polygon.
-   """
+#    """ Clip a polygon with another polygon.
+#    Args:
+#      subjectPolygon: a list of (x,y) 2d points, any polygon.
+#      clipPolygon: a list of (x,y) 2d points, has to be *convex*
+#    Note:
+#      **points have to be counter-clockwise ordered**
+#    Return:
+#      a list of (x,y) vertex point for the intersection polygon.
+#    """
    def inside(p):
       return(cp2[0]-cp1[0])*(p[1]-cp1[1]) > (cp2[1]-cp1[1])*(p[0]-cp1[0])
 

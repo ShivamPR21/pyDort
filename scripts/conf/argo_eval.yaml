@@ -1,0 +1,9 @@
+gt_path: "/home/shivampr21/Research/MOT-Research/pyDortResults/ground_truth/val"
+prediction_path: "/home/shivampr21/Research/MOT-Research/pyDortResults/SimpleTracker"
+d_min: 0
+d_max: 100
+out_file: "eval.csv"
+diffatt: null # Only valid for "test" set
+categories: ["PEDESTRIAN", "VEHICLE", "LARGE_VEHICLE", "ON_ROAD_OBSTACLE",
+            "OTHER_MOVER", "BUS", "TRAILER", "MOTORCYCLE","BICYCLE", "MOTORCYCLIST",
+            "MOPED", "ANIMAL", "EMERGENCY_VEHICLE", "BICYCLIST"]

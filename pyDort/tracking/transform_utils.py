@@ -1,26 +1,92 @@
 #!/usr/bin/env python3
 
 import copy
-from typing import Tuple
 
 import numpy as np
-from numba import jit
 from scipy.spatial.transform import Rotation
 
 from .se2 import SE2
 from .se3 import SE3
 
 
+def yaw_to_quaternion3d(yaw: float) -> np.ndarray:
+    # """Convert a rotation angle in the xy plane (i.e. about the z axis) to a quaternion.
+
+    # Args:
+    #     yaw: angle to rotate about the z-axis, representing an Euler angle, in radians
+
+    # Returns:
+    #     array w/ quaternion coefficients (qw,qx,qy,qz) in scalar-first order, per Argoverse convention.
+    # """
+    qx, qy, qz, qw = Rotation.from_euler(seq="z", angles=yaw, degrees=False).as_quat(canonical=True)
+    return np.array([qw, qx, qy, qz])
+
+
+def rotmat2quat(R: np.ndarray) -> np.ndarray:
+    """Convert a rotation-matrix to a quaternion in Argo's scalar-first notation (w, x, y, z)."""
+    quat_xyzw = Rotation.from_matrix(R).as_quat(canonical=True)
+    quat_wxyz = quat_scipy2argo(quat_xyzw)
+    return quat_wxyz
+
+
+def quat2rotmat(q: np.ndarray) -> np.ndarray:
+    # """Normalizes a quaternion to unit-length, then converts it into a rotation matrix.
+
+    # Note that libraries such as Scipy expect a quaternion in scalar-last [x, y, z, w] format,
+    # whereas at Argo we work with scalar-first [w, x, y, z] format, so we convert between the
+    # two formats here. We use the [w, x, y, z] order because this corresponds to the
+    # multidimensional complex number `w + ix + jy + kz`.
+
+    # Args:
+    #     q: Array of shape (4,) representing (w, x, y, z) coordinates
+
+    # Returns:
+    #     R: Array of shape (3, 3) representing a rotation matrix.
+    # """
+    norm = np.linalg.norm(q)
+    if not np.isclose(norm, 1.0, atol=1e-12):
+        # logger.info("Forced to re-normalize quaternion, since its norm was not equal to 1.")
+        if np.isclose(norm, 0.0):
+            raise ZeroDivisionError("Normalize quaternioning with norm=0 would lead to division by zero.")
+        q /= norm
+
+    quat_xyzw = quat_argo2scipy(q)
+    return Rotation.from_quat(quat_xyzw).as_matrix()
+
+
+def quat_argo2scipy(q: np.ndarray) -> np.ndarray:
+    # """Re-order Argoverse's scalar-first [w,x,y,z] quaternion order to Scipy's scalar-last [x,y,z,w]"""
+    w, x, y, z = q
+    q_scipy = np.array([x, y, z, w])
+    return q_scipy
+
+
+def quat_scipy2argo(q: np.ndarray) -> np.ndarray:
+    # """Re-order Scipy's scalar-last [x,y,z,w] quaternion order to Argoverse's scalar-first [w,x,y,z]."""
+    x, y, z, w = q
+    q_argo = np.array([w, x, y, z])
+    return q_argo
+
+
+def quat_argo2scipy_vectorized(q: np.ndarray) -> np.ndarray:
+    # """Re-order Argoverse's scalar-first [w,x,y,z] quaternion order to Scipy's scalar-last [x,y,z,w]"""
+    return q[..., [1, 2, 3, 0]]
+
+
+def quat_scipy2argo_vectorized(q: np.ndarray) -> np.ndarray:
+    # """Re-order Scipy's scalar-last [x,y,z,w] quaternion order to Argoverse's scalar-first [w,x,y,z]."""
+    return q[..., [3, 0, 1, 2]]
+
 def rotmat2d(theta: float) -> np.ndarray:
-    """
-        Return rotation matrix corresponding to rotation theta.
+    # """
+    #     Return rotation matrix corresponding to rotation theta.
 
-        Args:
-        -   theta: rotation amount in radians.
+    #     Args:
+    #     -   theta: rotation amount in radians.
 
-        Returns:
-        -   R: 2 x 2 np.ndarray rotation matrix corresponding to rotation theta.
-    """
+    #     Returns:
+    #     -   R: 2 x 2 np.ndarray rotation matrix corresponding to rotation theta.
+    # """
     cos_theta = np.cos(theta)
     sin_theta = np.sin(theta)
     R = np.array(
@@ -30,22 +96,21 @@ def rotmat2d(theta: float) -> np.ndarray:
         ])
     return R
 
-
 def get_B_SE2_A(B_SE3_A: SE3):
-    """
-        Can take city_SE3_egovehicle -> city_SE2_egovehicle
-        Can take egovehicle_SE3_object -> egovehicle_SE2_object
+    # """
+    #     Can take city_SE3_egovehicle -> city_SE2_egovehicle
+    #     Can take egovehicle_SE3_object -> egovehicle_SE2_object
 
-        Doesn't matter if we stretch square by h,w,l since
-        triangles will be similar regardless
+    #     Doesn't matter if we stretch square by h,w,l since
+    #     triangles will be similar regardless
 
-        Args:
-        -   B_SE3_A
+    #     Args:
+    #     -   B_SE3_A
 
-        Returns:
-        -   B_SE2_A
-        -   B_yaw_A
-    """
+    #     Returns:
+    #     -   B_SE2_A
+    #     -   B_yaw_A
+    # """
     x_corners = np.array([1, 1, 1, 1, -1, -1, -1, -1])
     y_corners = np.array([1, -1, -1, 1, 1, -1, -1, 1])
     z_corners = np.array([1, 1, -1, -1, 1, 1, -1, -1])
@@ -67,53 +132,35 @@ def get_B_SE2_A(B_SE3_A: SE3):
     )
     return B_SE2_A, B_yaw_A
 
-
 def se2_to_yaw(B_SE2_A):
-    """
-    Computes the pose vector v from a homogeneous transform A.
-    Args:
-    -   B_SE2_A
-    Returns:
-    -   v
-    """
+    # """
+    # Computes the pose vector v from a homogeneous transform A.
+    # Args:
+    # -   B_SE2_A
+    # Returns:
+    # -   v
+    # """
     R = B_SE2_A.rotation
     theta = np.arctan2(R[1,0], R[0,0])
     return theta
 
-
-def yaw_to_quaternion3d(yaw: float) -> Tuple[float,float,float,float]:
-    """
-    Args:
-    -   yaw: rotation about the z-axis
-
-    Returns:
-    -   qx,qy,qz,qw: quaternion coefficients
-    """
-    qx,qy,qz,qw = Rotation.from_euler('z', yaw).as_quat()
-    return qx,qy,qz,qw
-
-
 def test_yaw_to_quaternion3d():
-    """
-    """
     for i, yaw in enumerate(np.linspace(0, 3*np.pi, 50)):
         print(f'On iter {i}')
         dcm = rotMatZ_3D(yaw)
-        qx,qy,qz,qw = Rotation.from_dcm(dcm).as_quat()
+        qx,qy,qz,qw = Rotation.from_matrix(dcm).as_quat(canonical=True)
 
-        qx_, qy_, qz_, qw_ = yaw_to_quaternion3d(yaw)
+        qw_, qx_, qy_, qz_ = yaw_to_quaternion3d(yaw)
         print(qx_, qy_, qz_, qw_, ' vs ', qx,qy,qz,qw)
         assert np.allclose(qx, qx_, atol=1e-3)
         assert np.allclose(qy, qy_, atol=1e-3)
         assert np.allclose(qz, qz_, atol=1e-3)
         assert np.allclose(qw, qw_, atol=1e-3)
 
-
-@jit
 def roty(t: float):
-    """
-    Compute rotation matrix about the y-axis.
-    """
+    # """
+    # Compute rotation matrix about the y-axis.
+    # """
     c = np.cos(t)
     s = np.sin(t)
     R = np.array(
@@ -124,15 +171,14 @@ def roty(t: float):
         ])
     return R
 
-
 def rotMatZ_3D(yaw):
-    """
-        Args:
-        -   tz
+    # """
+    #     Args:
+    #     -   tz
 
-        Returns:
-        -   rot_z
-    """
+    #     Returns:
+    #     -   rot_z
+    # """
     # c = np.cos(yaw)
     # s = np.sin(yaw)
     # rot_z = np.array(
@@ -142,21 +188,20 @@ def rotMatZ_3D(yaw):
     #         [   0, 0, 1 ]
     #     ])
 
-    rot_z = Rotation.from_euler('z', yaw).as_dcm()
+    rot_z = Rotation.from_euler('z', yaw).as_matrix()
     return rot_z
 
-
 def convert_3dbox_to_8corner(bbox3d_input: np.ndarray) -> np.ndarray:
-    '''
-        Args:
-        -   bbox3d_input: Numpy array of shape (7,) representing
-                tx,ty,tz,yaw,l,w,h. (tx,ty,tz,yaw) tell us how to
-                transform points to get from the object frame to
-                the egovehicle frame.
+    # '''
+    #     Args:
+    #     -   bbox3d_input: Numpy array of shape (7,) representing
+    #             tx,ty,tz,yaw,l,w,h. (tx,ty,tz,yaw) tell us how to
+    #             transform points to get from the object frame to
+    #             the egovehicle frame.
 
-        Returns:
-        -   corners_3d: (8,3) array in egovehicle frame
-    '''
+    #     Returns:
+    #     -   corners_3d: (8,3) array in egovehicle frame
+    # '''
     # compute rotational matrix around yaw axis
     bbox3d = copy.copy(bbox3d_input)
     yaw = bbox3d[3]
@@ -168,9 +213,9 @@ def convert_3dbox_to_8corner(bbox3d_input: np.ndarray) -> np.ndarray:
     h = bbox3d[6]
 
     # 3d bounding box corners
-    x_corners = [l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2];
-    y_corners = [w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2];
-    z_corners = [h/2,h/2,h/2,h/2,-h/2,-h/2,-h/2,-h/2];
+    x_corners = [l/2,l/2,-l/2,-l/2,l/2,l/2,-l/2,-l/2]
+    y_corners = [w/2,-w/2,-w/2,w/2,w/2,-w/2,-w/2,w/2]
+    z_corners = [h/2,h/2,h/2,h/2,-h/2,-h/2,-h/2,-h/2]
 
     # rotate and translate 3d bounding box
     corners_3d_obj_fr = np.vstack([x_corners,y_corners,z_corners]).T
@@ -179,13 +224,13 @@ def convert_3dbox_to_8corner(bbox3d_input: np.ndarray) -> np.ndarray:
     return corners_3d_ego_fr
 
 def yaw_from_bbox_corners(det_corners: np.ndarray) -> float:
-    """
-    Use basic trigonometry on cuboid to get orientation angle.
-        Args:
-        -   det_corners: corners of bounding box
-        Returns:
-        -   yaw
-    """
+    # """
+    # Use basic trigonometry on cuboid to get orientation angle.
+    #     Args:
+    #     -   det_corners: corners of bounding box
+    #     Returns:
+    #     -   yaw
+    # """
     p1 = det_corners[1]
     p5 = det_corners[5]
     dy = p1[1] - p5[1]

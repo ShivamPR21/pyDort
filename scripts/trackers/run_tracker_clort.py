@@ -1,3 +1,4 @@
+import argparse
 import os
 from pathlib import Path
 from typing import List
@@ -25,7 +26,7 @@ from pyDort.tracking.transform_utils import (
 )
 
 
-@hydra.main(version_base=None, config_path="../conf", config_name="simple_config")
+@hydra.main(version_base=None, config_path="../conf", config_name="clort_config")
 def run_tracker(cfg: DictConfig) -> None:
 
     uuid_gen = UUIDGeneration()
@@ -39,15 +40,15 @@ def run_tracker(cfg: DictConfig) -> None:
                     splits=cfg.data.split,
                     img_size=cfg.data.img_shape,
                     point_cloud_size=cfg.data.pcl_quant,
-                    in_global_frame=cfg.data.global_frame,
+                    in_global_frame=cfg.data.in_global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,
-                    image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
+                    image=cfg.data.image, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
                     pcl_transform=None)
 
-    # appearance_model = DLA34Encoder(out_dim=256)
-    # appearance_model = appearance_model.to('cuda')
-    # appearance_model.eval()
+    appearance_model = DLA34Encoder(out_dim=256)
+    appearance_model = appearance_model.to('cuda')
+    appearance_model.eval()
 
     cur_log = None
     tracker = None
@@ -64,6 +65,7 @@ def run_tracker(cfg: DictConfig) -> None:
         city_SE3_egovehicle = SE3(R.T, t)
         current_lidar_timestamp = np.asanyarray(frame_log['timestamp'], dtype=np.uint64) # type: ignore
 
+        run.set_description(f'Log Id: {cur_log}')
 
         pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz = data
 
@@ -75,47 +77,32 @@ def run_tracker(cfg: DictConfig) -> None:
         # Tracking start
         log_id = log_id.split("_")[-1]
         if log_id != cur_log:
-            tracker = PyDort(max_age=cfg.tracker.max_age,
-                             dt=1.,
-                             min_hits=cfg.tracker.min_hits,
-                             sem=FilterPyUKF,
-                             config_file=cfg.tracker.sem_cfg,
-                             rep_update=cfg.tracker.update,
-                             Q=cfg.tracker.Q,
-                             alpha_thresh=cfg.tracker.alpha_t,
-                             beta_thresh=cfg.tracker.beta_t,
-                             state_w=cfg.tracker.state_w,
-                             dsc_w=cfg.tracker.dsc_w,
-                             cm_fusion_w=cfg.tracker.cm_fusion_w,
-                             trks_center_w=cfg.tracker.track_center_momentum,
-                             matching_threshold=cfg.tracker.matching_threshold)
+            tracker = PyDort()
             cur_log = log_id
 
-        run.set_description(f'Log Id: {cur_log}')
+        pcls = pcls.to('cuda') if isinstance(pcls, torch.Tensor) else pcls
+        imgs = imgs.to('cuda') if isinstance(imgs, torch.Tensor) else imgs
+        bboxs = bboxs.to('cuda') if isinstance(bboxs, torch.Tensor) else bboxs
 
-        # pcls = pcls.to('cuda') if isinstance(pcls, torch.Tensor) else pcls
-        # imgs = imgs.to('cuda') if isinstance(imgs, torch.Tensor) else imgs
-        # bboxs = bboxs.to('cuda') if isinstance(bboxs, torch.Tensor) else bboxs
+        mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls, pcls_sz, imgs, imgs_sz, bboxs, frame_sz)
+        encoding = None
+        if mmc_e is not None:
+            encoding = mmc_e
+        elif mm_e is not None:
+            encoding = mm_e
+        elif pc_e is not None:
+            encoding = pc_e
+        elif mv_e is not None:
+            encoding = mv_e
+        else:
+            raise NotImplementedError("Encoder resolution failed.")
 
-        # mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls, pcls_sz, imgs, imgs_sz, bboxs, frame_sz)
-        # encoding = None
-        # if mmc_e is not None:
-        #     encoding = mmc_e
-        # elif mm_e is not None:
-        #     encoding = mm_e
-        # elif pc_e is not None:
-        #     encoding = pc_e
-        # elif mv_e is not None:
-        #     encoding = mv_e
-        # else:
-        #     raise NotImplementedError("Encoder resolution failed.")
-
-        # assert(encoding is not None)
+        assert(encoding is not None)
         assert(tracker is not None)
-        dets_w_info = tracker.update(bboxs.detach().cpu().numpy(), [None, None], track_cls)
+        dets_w_info = tracker.update(bboxs.detach().cpu().numpy(), [encoding.detach().cpu().numpy(), None], track_cls)
 
         tracked_labels = []
-        for i, det in enumerate(dets_w_info):
+        for i, det in enumerate(batch_bbox_3d_from_8corners(bboxs.detach().cpu().numpy())):
             # move city frame tracks back to ego-vehicle frame
             xyz_city = np.array([det[0], det[1], det[2]]).reshape(1,3)
             city_yaw_object = det[3]

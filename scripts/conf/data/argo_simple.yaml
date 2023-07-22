@@ -1,0 +1,14 @@
+data_dir: "/home/shivampr21/Research/datasets/argoverse-tracking/argov1_proc/"
+split: ["val"]
+max_objects: null
+target_cls: null
+distance_threshold: null
+imgs: False
+pcl: False
+bbox_aug: True
+global_frame: True,
+pivot_to_first_frame: False,
+img_shape: [128, 128]
+pcl_quant: [100, 200]
+pcl_scale: 100.0
+tracks_dump_dir: "/home/shivampr21/Research/MOT-Research/pyDortResults/SimpleTracker/"

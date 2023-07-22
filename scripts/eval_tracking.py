@@ -1,20 +1,21 @@
 # <Copyright 2019, Argo AI, LLC. Released under the MIT license.>
-import argparse
 import glob
 import logging
 import os
 import pathlib
 import pickle
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TextIO, Union
+from typing import Any, Dict, List, Union
 
+import hydra
 import motmetrics as mm
 import numpy as np
 import pandas as pd
-from argoverse.evaluation.detection.utils import wrap_angle
-from argoverse.evaluation.eval_utils import label_to_bbox
-from argoverse.utils.json_utils import read_json_file
+from omegaconf import DictConfig
 from shapely.geometry.polygon import Polygon
+
+from pyDort.eval_utils import label_to_bbox
+from pyDort.helpers import read_json_file, wrap_angle
 
 mh = mm.metrics.create()
 logger = logging.getLogger(__name__)
@@ -33,18 +34,18 @@ MOTA: Bernardin et al. https://link.springer.com/article/10.1155/2008/246309
 
 
 def in_distance_range_pose(ego_center: np.ndarray, pose: np.ndarray, d_min: float, d_max: float) -> bool:
-    """Determine whether a pose in the ego-vehicle frame falls within a specified distance range
-        of the egovehicle's origin.
+    # """Determine whether a pose in the ego-vehicle frame falls within a specified distance range
+    #     of the egovehicle's origin.
 
-    Args:
-        ego_center: ego center pose (zero if bbox is in ego frame).
-        pose:  pose to test.
-        d_min: minimum distance range
-        d_max: maximum distance range
+    # Args:
+    #     ego_center: ego center pose (zero if bbox is in ego frame).
+    #     pose:  pose to test.
+    #     cfg.d_min: minimum distance range
+    #     cfg.d_max: maximum distance range
 
-    Returns:
-        A boolean saying if input pose is with specified distance range.
-    """
+    # Returns:
+    #     A boolean saying if input pose is with specified distance range.
+    # """
     dist = float(np.linalg.norm(pose[0:3] - ego_center[0:3]))
 
     return dist > d_min and dist < d_max
@@ -80,16 +81,16 @@ def get_distance_iou_3d(x1: Dict[str, np.ndarray], x2: Dict[str, np.ndarray], na
 
 
 def get_distance(x1: Dict[str, np.ndarray], x2: Dict[str, np.ndarray], name: str) -> float:
-    """Get the distance between two poses, returns nan if distance is larger than detection threshold.
+    # """Get the distance between two poses, returns nan if distance is larger than detection threshold.
 
-    Args:
-        x1: first pose
-        x2: second pose
-        name: name of the field to test
+    # Args:
+    #     x1: first pose
+    #     x2: second pose
+    #     name: name of the field to test
 
-    Returns:
-        A distance value or NaN
-    """
+    # Returns:
+    #     A distance value or NaN
+    # """
     if name == "centroid":
         dist = float(np.linalg.norm(x1[name][0:3] - x2[name][0:3]))
         return dist if dist < 2 else float(np.nan)
@@ -104,35 +105,40 @@ def get_distance(x1: Dict[str, np.ndarray], x2: Dict[str, np.ndarray], name: str
     else:
         raise NotImplementedError("Not implemented..")
 
+class IntIdFromString:
 
-def eval_tracks(
-    path_tracker_output_root: _PathLike,
-    path_dataset_root: _PathLike,
-    d_min: float,
-    d_max: float,
-    out_file: str,
-    centroid_method: str,
-    diffatt: Optional[str],
-    category: str = "VEHICLE",
-) -> None:
-    """Evaluate tracking output.
+    def __init__(self) -> None:
+        self.n_elements = 0
+        self.dct : Dict[str, int] = {}
 
-    Args:
-        path_tracker_output_root: path to tracker output root, containing log_id subdirs
-        path_dataset_root: path to dataset root, containing log_id subdirs
-        d_min: minimum allowed distance range for ground truth and predicted objects,
-            in meters
-        d_max: maximum allowed distance range, as above, in meters
-        out_file: output file object
-        centroid_method: method for ground truth centroid estimation
-        diffatt: difficulty attribute ['easy',  'far', 'fast', 'occ', 'short']. Note that if
-            tracking according to a specific difficulty attribute is computed, then all ground
-            truth annotations not fulfilling that attribute specification are
-            disregarded/dropped out. Since the corresponding track predictions are not dropped
-            out, the number of false positives, false negatives, and MOTA will not be accurate
-            However, `mostly tracked` and `mostly lost` will be accurate.
-        category: such as "VEHICLE" "PEDESTRIAN"
-    """
+    def get_id(self, uid: str) -> int:
+        if uid in self.dct.keys():
+            return self.dct[uid]
+
+        self.dct.update({uid: self.n_elements})
+        self.n_elements += 1
+        return self.n_elements-1
+
+@hydra.main(version_base=None, config_path='./conf', config_name='argo_eval.yaml')
+def eval_tracks(cfg: DictConfig) -> None:
+    # """Evaluate tracking output.
+
+    # Args:
+    #     cfg.prediction_path: path to tracker output root, containing log_id subdirs
+    #     cfg.gt_path: path to dataset root, containing log_id subdirs
+    #     cfg.d_min: minimum allowed distance range for ground truth and predicted objects,
+    #         in meters
+    #     cfg.d_max: maximum allowed distance range, as above, in meters
+    #     out_file: output file object
+    #     centroid_method: method for ground truth centroid estimation
+    #     cfg.diffatt: difficulty attribute ['easy',  'far', 'fast', 'occ', 'short']. Note that if
+    #         tracking according to a specific difficulty attribute is computed, then all ground
+    #         truth annotations not fulfilling that attribute specification are
+    #         disregarded/dropped out. Since the corresponding track predictions are not dropped
+    #         out, the number of false positives, false negatives, and MOTA will not be accurate
+    #         However, `mostly tracked` and `mostly lost` will be accurate.
+    #     cfg.categories: such as "VEHICLE" "PEDESTRIAN"
+    # """
     acc_c = mm.MOTAccumulator(auto_id=True)
     acc_i = mm.MOTAccumulator(auto_id=True)
     acc_o = mm.MOTAccumulator(auto_id=True)
@@ -140,19 +146,20 @@ def eval_tracks(
     ID_gt_all: List[str] = []
 
     count_all: int = 0
-    if diffatt is not None:
-        import argoverse.evaluation
+    uid_to_int = IntIdFromString()
 
-        pkl_path = os.path.join(os.path.dirname(argoverse.evaluation.__file__), "dict_att_all.pkl")
+    if cfg.diffatt is not None:
+
+        pkl_path = os.path.join(os.path.dirname(__file__), "argo_assets", "dict_att_all.pkl")
         if not os.path.exists(pkl_path):
             # generate them on the fly
             logger.info(pkl_path)
             raise NotImplementedError
 
-        pickle_in = open(pkl_path, "rb")  # open(f"{path_dataset_root}/dict_att_all.pkl","rb")
+        pickle_in = open(pkl_path, "rb")  # open(f"{cfg.gt_path}/dict_att_all.pkl","rb")
         dict_att_all = pickle.load(pickle_in)
 
-    path_datasets = glob.glob(os.path.join(path_dataset_root, "*"))
+    path_datasets = glob.glob(os.path.join(cfg.gt_path, "*"))
     num_total_gt = 0
 
     for path_dataset in path_datasets:
@@ -161,7 +168,7 @@ def eval_tracks(
         if len(log_id) == 0 or log_id.startswith("_"):
             continue
 
-        path_tracker_output = os.path.join(path_tracker_output_root, log_id)
+        path_tracker_output = os.path.join(cfg.prediction_path, log_id)
 
         path_track_data = sorted(
             glob.glob(os.path.join(os.fspath(path_tracker_output), "per_sweep_annotations_amodal", "*"))
@@ -190,12 +197,12 @@ def eval_tracks(
             id_gts = []
             for i in range(len(gt_data)):
 
-                if gt_data[i]["label_class"] != category:
+                if gt_data[i]["label_class"] not in cfg.categories:
                     continue
 
-                if diffatt is not None:
+                if cfg.diffatt is not None:
 
-                    if diffatt not in dict_att_all["test"][log_id][gt_data[i]["track_label_uuid"]]["difficult_att"]:
+                    if cfg.diffatt not in dict_att_all["test"][log_id][gt_data[i]["track_label_uuid"]]["difficult_att"]:
                         continue
 
                 bbox, orientation = label_to_bbox(gt_data[i])
@@ -207,7 +214,7 @@ def eval_tracks(
                         gt_data[i]["center"]["z"],
                     ]
                 )
-                if bbox[3] > 0 and in_distance_range_pose(np.zeros(3), center, d_min, d_max):
+                if bbox[3] > 0 and in_distance_range_pose(np.zeros(3), center, cfg.d_min, cfg.d_max):
                     track_label_uuid = gt_data[i]["track_label_uuid"]
                     gt[track_label_uuid] = {}
                     gt[track_label_uuid]["centroid"] = center
@@ -221,7 +228,7 @@ def eval_tracks(
                     if track_label_uuid not in ID_gt_all:
                         ID_gt_all.append(track_label_uuid)
 
-                    id_gts.append(track_label_uuid)
+                    id_gts.append(uid_to_int.get_id(track_label_uuid))
                     num_total_gt += 1
 
             tracks: Dict[str, Dict[str, Any]] = {}
@@ -232,12 +239,12 @@ def eval_tracks(
             for track in track_data:
                 key = track["track_label_uuid"]
 
-                if track["label_class"] != category or track["height"] == 0:
+                if track["label_class"] not in cfg.categories or track["height"] == 0:
                     continue
 
                 center = np.array([track["center"]["x"], track["center"]["y"], track["center"]["z"]])
                 bbox, orientation = label_to_bbox(track)
-                if in_distance_range_pose(np.zeros(3), center, d_min, d_max):
+                if in_distance_range_pose(np.zeros(3), center, cfg.d_min, cfg.d_max):
                     tracks[key] = {}
                     tracks[key]["centroid"] = center
                     tracks[key]["bbox"] = bbox
@@ -246,7 +253,7 @@ def eval_tracks(
                     tracks[key]["length"] = track["length"]
                     tracks[key]["height"] = track["height"]
 
-                    id_tracks.append(key)
+                    id_tracks.append(uid_to_int.get_id(key))
 
             dists_c: List[List[float]] = []
             dists_i: List[List[float]] = []
@@ -270,13 +277,15 @@ def eval_tracks(
             acc_i.update(id_gts, id_tracks, dists_i)
             acc_o.update(id_gts, id_tracks, dists_o)
 
-    # print(count_all)
-    if count_all == 0:
-        # fix for when all hypothesis is empty,
-        # pymotmetric currently doesn't support this, see https://github.com/cheind/py-motmetrics/issues/49
-        acc_c.update(id_gts, ["dummy_id"], np.ones(np.shape(id_gts)) * np.inf)
-        acc_i.update(id_gts, ["dummy_id"], np.ones(np.shape(id_gts)) * np.inf)
-        acc_o.update(id_gts, ["dummy_id"], np.ones(np.shape(id_gts)) * np.inf)
+    logger.info(f'{count_all = }')
+    # if count_all == 0:
+    #     # fix for when all hypothesis is empty,
+    #     # pymotmetric currently doesn't support this, see https://github.com/cheind/py-motmetrics/issues/49
+    #     acc_c.update(id_gts, ["dummy_id"], np.ones(np.shape(id_gts)) * np.inf)
+    #     acc_i.update(id_gts, ["dummy_id"], np.ones(np.shape(id_gts)) * np.inf)
+    #     acc_o.update(id_gts, ["dummy_id"], np.ones(np.shape(id_gts)) * np.inf)
+
+    logger.info(f'{acc_c = }')
 
     summary = mh.compute(
         acc_c,
@@ -301,7 +310,7 @@ def eval_tracks(
     fn = os.path.basename(path_tracker_output)
     num_frames = summary["num_frames"][0]
     mota = summary["mota"][0] * 100
-    motp_c = (1 - summary["motp"][0])*100
+    motp_c = (1 - summary["motp"][0])
     idf1 = summary["idf1"][0]*100
     most_track = summary["mostly_tracked"][0] / num_tracks *100
     most_lost = summary["mostly_lost"][0] / num_tracks *100
@@ -316,7 +325,6 @@ def eval_tracks(
     logger.info("MOTP-I = %s", sum_motp_i)
     num_tracks = len(ID_gt_all)
 
-    fn = os.path.basename(path_tracker_output)
     motp_i = sum_motp_i["motp"][0]
 
     acc_c.events.loc[acc_c.events.Type != "RAW", "D"] = acc_o.events.loc[acc_o.events.Type != "RAW", "D"]
@@ -324,9 +332,9 @@ def eval_tracks(
     logger.info("MOTP-O = %s", sum_motp_o)
     num_tracks = len(ID_gt_all)
 
-    fn = os.path.basename(path_tracker_output)
     motp_o = sum_motp_o["motp"][0]
 
+    fn = os.path.basename(path_tracker_output)
     out_df = pd.DataFrame([[fn, num_frames, num_tracks, mota, motp_c, motp_o, motp_i, idf1, most_track, most_lost, num_fp, num_miss, num_switch, num_frag]]
                           , columns=[
                               "File Name",
@@ -334,57 +342,8 @@ def eval_tracks(
                               "IDF1", "Most Track", "Most Lost", "Number of False Positive",
                               "Number of Misses", "Number of Switches", "Number of Fragments"])
 
-    out_df.to_csv(out_file)
+    out_df.to_csv(os.path.join(cfg.prediction_path, cfg.out_file))
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--path_tracker_output",
-        type=str,
-        default="../../argodataset_30Hz/test_label/028d5cb1-f74d-366c-85ad-84fde69b0fd3",
-    )
-    parser.add_argument("--path_dataset", type=str, default="../../argodataset_30Hz/cvpr_test_set")
-    parser.add_argument(
-        "--centroid_method",
-        type=str,
-        default="average",
-        choices=["label_center", "average"],
-    )
-    parser.add_argument("--flag", type=str, default="")
-    parser.add_argument("--d_min", type=float, default=0)
-    parser.add_argument("--d_max", type=float, default=100, required=True)
-    parser.add_argument(
-        "--diffatt",
-        type=str,
-        default=None,
-        required=False,
-        help="Evaluate tracking according to difficulty-based attributes.",
-    )
-    parser.add_argument("--category", type=str, default="VEHICLE", required=False)
-
-    args = parser.parse_args()
-    logger.info("args = %s", args)
-
-    tk_basename = args.path_tracker_output
-
-    out_filename = f'{tk_basename}/_{args.flag}_{int(args.d_min)}_{int(args.d_max)}_{args.centroid_method}_{args.diffatt}_{args.category}.csv'
-
-    logger.info("output file name = %s", out_filename)
-    print(f'output file name = {out_filename}')
-
-    eval_tracks(
-        args.path_tracker_output,
-        args.path_dataset,
-        args.d_min,
-        args.d_max,
-        out_filename,
-        args.centroid_method,
-        args.diffatt,
-        args.category,
-    )
-
-# python3 eval_tracking_diff.py \
-# --path_tracker_output=/data/tracker_output \
-# --path_dataset=/data/argoverse/argoverse-tracking/val --d_max=100
+    eval_tracks()

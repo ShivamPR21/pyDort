@@ -1,0 +1,3 @@
+defaults:
+  - data: argo_simple
+  - tracker: simple

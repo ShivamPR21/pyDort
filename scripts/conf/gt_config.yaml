@@ -1,0 +1,4 @@
+data:
+  data_dir: "/home/shivampr21/Research/datasets/argoverse-tracking/argov1_proc/"
+  split: ["val"]
+  tracks_dump_dir: "/home/shivampr21/Research/MOT-Research/pyDortResults"

@@ -2,7 +2,7 @@ max_age: 5
 min_hits: 1
 matching_threshold: 0.8
 sem_cfg: "../conf/conf_sem.json"
-update: "replace"
+update: "similarity"
 Q: 1
 track_center_momentum: [0.5]
 alpha_t: [0.1, 0.9]

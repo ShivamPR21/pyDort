@@ -8,11 +8,18 @@ import torch
 import wandb
 from clort.data import ArgoCL
 from clort.model import CLModel, DLA34Encoder
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from tqdm import tqdm
 
-from pyDort.helpers import UUIDGeneration, check_mkdir, read_json_file, save_json_dict
+from pyDort.helpers import (
+    UUIDGeneration,
+    check_mkdir,
+    flatten_cfg,
+    read_json_file,
+    save_json_dict,
+)
 from pyDort.sem.filterpy_ukf import FilterPyUKF
+from pyDort.tracking.eval import eval_tracks
 from pyDort.tracking.pydort import PyDort
 from pyDort.tracking.se2 import SE2
 from pyDort.tracking.se3 import SE3
@@ -27,6 +34,13 @@ from pyDort.tracking.transform_utils import (
 
 @hydra.main(version_base=None, config_path="../conf", config_name="simple_config")
 def run_tracker(cfg: DictConfig) -> None:
+    wandb.login()
+
+    wandb.init(
+        project=cfg.wb.project,
+
+        config=flatten_cfg(cfg)
+    )
 
     uuid_gen = UUIDGeneration()
 
@@ -44,10 +58,6 @@ def run_tracker(cfg: DictConfig) -> None:
                     image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
                     pcl_transform=None)
-
-    # appearance_model = DLA34Encoder(out_dim=256)
-    # appearance_model = appearance_model.to('cuda')
-    # appearance_model.eval()
 
     cur_log = None
     tracker = None
@@ -92,24 +102,6 @@ def run_tracker(cfg: DictConfig) -> None:
 
         run.set_description(f'Log Id: {cur_log}')
 
-        # pcls = pcls.to('cuda') if isinstance(pcls, torch.Tensor) else pcls
-        # imgs = imgs.to('cuda') if isinstance(imgs, torch.Tensor) else imgs
-        # bboxs = bboxs.to('cuda') if isinstance(bboxs, torch.Tensor) else bboxs
-
-        # mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls, pcls_sz, imgs, imgs_sz, bboxs, frame_sz)
-        # encoding = None
-        # if mmc_e is not None:
-        #     encoding = mmc_e
-        # elif mm_e is not None:
-        #     encoding = mm_e
-        # elif pc_e is not None:
-        #     encoding = pc_e
-        # elif mv_e is not None:
-        #     encoding = mv_e
-        # else:
-        #     raise NotImplementedError("Encoder resolution failed.")
-
-        # assert(encoding is not None)
         assert(tracker is not None)
         dets_w_info = tracker.update(bboxs.detach().cpu().numpy(), [None, None], track_cls)
 
@@ -154,6 +146,23 @@ def run_tracker(cfg: DictConfig) -> None:
             tracked_labels.extend(prev_tracked_labels)
 
         save_json_dict(json_fpath, tracked_labels) # type: ignore
+
+    # Evaluate and Log
+    evaluate(cfg)
+
+def evaluate(cfg: DictConfig):
+    ## Evaluate results
+    dct_eval = OmegaConf.to_container(cfg.eval, resolve=True)
+    dct_eval.update({"prediction_path": cfg.data.tracks_dump_dir}) # type: ignore
+
+    for i, categories in enumerate(["categories_full", "categories_vru", "categories_conventional"]): # type: ignore
+        dct_eval.update({"categories": cfg.eval[categories]}) # type: ignore
+        dct_eval.update({"out_file": f'{categories}_{cfg.eval.out_file}'}) # type: ignore
+        dct_eval = OmegaConf.create(dct_eval)
+        res = eval_tracks(dct_eval) # type: ignore
+        res.update({"Eval Index": i+1})
+        wandb.log(res) # type: ignore
+        wandb.save(os.path.join(cfg.data.tracks_dump_dir, dct_eval.out_file))
 
 if __name__ == "__main__":
     run_tracker()

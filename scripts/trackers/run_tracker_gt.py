@@ -28,8 +28,6 @@ from pyDort.tracking.transform_utils import (
 @hydra.main(version_base=None, config_path="../conf", config_name="gt_config")
 def run_tracker(cfg: DictConfig) -> None:
 
-    uuid_gen = UUIDGeneration()
-
     dataset = ArgoCL(cfg.data.data_dir,
                     temporal_horizon=1,
                     temporal_overlap=0,
@@ -50,7 +48,6 @@ def run_tracker(cfg: DictConfig) -> None:
     # appearance_model.eval()
 
     cur_log = None
-    tracker = None
 
     for i in (run := tqdm(range(dataset.N), total=dataset.N)):
         data = dataset[i]
@@ -81,27 +78,6 @@ def run_tracker(cfg: DictConfig) -> None:
             # tracker = PyDort()
             cur_log = log_id
 
-        # pcls = pcls.to('cuda') if isinstance(pcls, torch.Tensor) else pcls
-        # imgs = imgs.to('cuda') if isinstance(imgs, torch.Tensor) else imgs
-        # bboxs = bboxs.to('cuda') if isinstance(bboxs, torch.Tensor) else bboxs
-
-        # mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls, pcls_sz, imgs, imgs_sz, bboxs, frame_sz)
-        # encoding = None
-        # if mmc_e is not None:
-        #     encoding = mmc_e
-        # elif mm_e is not None:
-        #     encoding = mm_e
-        # elif pc_e is not None:
-        #     encoding = pc_e
-        # elif mv_e is not None:
-        #     encoding = mv_e
-        # else:
-        #     raise NotImplementedError("Encoder resolution failed.")
-
-        # assert(encoding is not None)
-        # assert(tracker is not None)
-        # dets_w_info = tracker.update(bboxs.detach().cpu().numpy(), [encoding.detach().cpu().numpy(), None], (np.array(dataset.obj_cls, dtype=str)[cls_idxs]).tolist())
-
         tracked_labels = []
         for i, det in enumerate(batch_bbox_3d_from_8corners(bboxs.detach().cpu().numpy())):
             # move city frame tracks back to ego-vehicle frame
@@ -128,9 +104,9 @@ def run_tracker(cfg: DictConfig) -> None:
             "length": float(det[4]),
             "width": float(det[5]),
             "height": float(det[6]),
-            "track_label_uuid": uuid_gen.get_uuid(det[7]+1) if len(det) >= 9 else track_uids[i],
+            "track_label_uuid": track_uids[i],
             "timestamp": int(current_lidar_timestamp),
-            "label_class": det[8] if len(det) >= 9 else track_cls[i]
+            "label_class": track_cls[i]
             })
 
         label_dir = os.path.join(cfg.data.tracks_dump_dir, cur_log, "per_sweep_annotations_amodal")

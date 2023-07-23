@@ -176,10 +176,14 @@ def evaluate(cfg: DictConfig):
     dct_eval = OmegaConf.to_container(cfg.eval, resolve=True)
     dct_eval.update({"prediction_path": cfg.data.tracks_dump_dir}) # type: ignore
 
-    for categories in [dct_eval["categories_full"], dct_eval["categories_vru"], dct_eval["categories_conventional"]]: # type: ignore
-        dct_eval.update({"categories": categories}) # type: ignore
+    for i, categories in enumerate(["categories_full", "categories_vru", "categories_conventional"]): # type: ignore
+        dct_eval.update({"categories": cfg.eval[categories]}) # type: ignore
+        dct_eval.update({"out_file": f'{categories}_{cfg.eval.out_file}'}) # type: ignore
         dct_eval = OmegaConf.create(dct_eval)
-        wandb.log(eval_tracks(dct_eval)) # type: ignore
+        res = eval_tracks(dct_eval) # type: ignore
+        res.update({"Eval Index": i+1})
+        wandb.log(res) # type: ignore
+        wandb.save(os.path.join(cfg.data.tracks_dump_dir, dct_eval.out_file))
 
 if __name__ == "__main__":
     run_tracker()

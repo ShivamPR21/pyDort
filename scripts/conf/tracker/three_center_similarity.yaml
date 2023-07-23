@@ -1,12 +1,12 @@
-max_age: 5
+max_age: 2
 min_hits: 1
-matching_threshold: 0.8
+matching_threshold: 0.6
 sem_cfg: "../conf/conf_sem.json"
 rep_update: "similarity"
-Q: 1
-track_center_momentum: [0.5]
+Q: 3
+track_center_momentum: [0.5, 0.3, 0.1]
 alpha_t: [0.1, 0.9]
-beta_t: [0.1, 0.5]
+beta_t: [0.1, 0.9]
 state_w: [0.3, 0.3, 0.3]
 dsc_w: [0.5, 0.5]
-cm_fusion_w: [0.8, 0.2]
+cm_fusion_w: [0.2, 0.8]

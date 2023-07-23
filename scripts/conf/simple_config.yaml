@@ -1,3 +1,6 @@
 defaults:
+  - am: simple
   - data: argo_simple
   - tracker: simple
+  - wb: clort_jsr_eval
+  - eval: eval

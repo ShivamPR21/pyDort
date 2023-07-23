@@ -339,7 +339,7 @@ def eval_tracks(cfg: DictConfig) -> Dict[str, Any]:
 
     out_df.to_csv(os.path.join(cfg.prediction_path, cfg.out_file))
 
-    return {"Categories": cfg.categories,
+    return {"Categories": list(cfg.categories),
             "Num Frames": num_frames,
             "Num Tracks": num_tracks,
             "MOTA": mota,

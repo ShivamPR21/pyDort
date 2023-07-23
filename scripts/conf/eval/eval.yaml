@@ -1,0 +1,13 @@
+gt_path: "/home/lidar-workstation/CLORT/pyDortResults/ground_truth/val"
+d_min: 0
+d_max: 100
+out_file: "eval.csv"
+diffatt: null # Only valid for "test" set
+categories_full: ["PEDESTRIAN", "VEHICLE", "LARGE_VEHICLE", "ON_ROAD_OBSTACLE",
+            "OTHER_MOVER", "BUS", "TRAILER", "MOTORCYCLE","BICYCLE", "MOTORCYCLIST",
+            "MOPED", "ANIMAL", "EMERGENCY_VEHICLE", "BICYCLIST"]
+categories_vru: ["PEDESTRIAN", "ON_ROAD_OBSTACLE",
+            "OTHER_MOVER", "MOTORCYCLE","BICYCLE",
+            "MOTORCYCLIST", "MOPED", "ANIMAL", "BICYCLIST"]
+categories_conventional: ["VEHICLE", "LARGE_VEHICLE",
+            "BUS", "TRAILER", "EMERGENCY_VEHICLE"]

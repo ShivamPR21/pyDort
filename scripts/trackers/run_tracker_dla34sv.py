@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
 import hydra
 import numpy as np
@@ -19,6 +19,7 @@ from pyDort.helpers import (
     save_json_dict,
 )
 from pyDort.sem.filterpy_ukf import FilterPyUKF
+from pyDort.tracking.eval import eval_tracks
 from pyDort.tracking.pydort import PyDort
 from pyDort.tracking.se2 import SE2
 from pyDort.tracking.se3 import SE3
@@ -166,6 +167,18 @@ def run_tracker(cfg: DictConfig) -> None:
             tracked_labels.extend(prev_tracked_labels)
 
         save_json_dict(json_fpath, tracked_labels) # type: ignore
+
+    ## Evaluate results
+    evaluate(cfg)
+
+def evaluate(cfg: DictConfig):
+    ## Evaluate results
+    dct_eval = cfg.eval
+    dct_eval.update({"prediction_path": cfg.data.tracks_dump_dir})
+
+    for categories in [dct_eval.categories_full, dct_eval.categories_vru, dct_eval.categories_conventional]:
+        dct_eval.update({"categories": categories})
+        wandb.log(eval_tracks(dct_eval))
 
 if __name__ == "__main__":
     run_tracker()

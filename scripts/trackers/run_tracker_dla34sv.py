@@ -8,7 +8,7 @@ import torch
 import wandb
 from clort.data import ArgoCL
 from clort.model import CLModel, DLA34Encoder
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from tqdm import tqdm
 
 from pyDort.helpers import (
@@ -173,12 +173,13 @@ def run_tracker(cfg: DictConfig) -> None:
 
 def evaluate(cfg: DictConfig):
     ## Evaluate results
-    dct_eval = cfg.eval
-    dct_eval.update({"prediction_path": cfg.data.tracks_dump_dir})
+    dct_eval = OmegaConf.to_container(cfg.eval, resolve=True)
+    dct_eval.update({"prediction_path": cfg.data.tracks_dump_dir}) # type: ignore
 
-    for categories in [dct_eval.categories_full, dct_eval.categories_vru, dct_eval.categories_conventional]:
-        dct_eval.update({"categories": categories})
-        wandb.log(eval_tracks(dct_eval))
+    for categories in [dct_eval["categories_full"], dct_eval["categories_vru"], dct_eval["categories_conventional"]]: # type: ignore
+        dct_eval.update({"categories": categories}) # type: ignore
+        dct_eval = OmegaConf.create(dct_eval)
+        wandb.log(eval_tracks(dct_eval)) # type: ignore
 
 if __name__ == "__main__":
     run_tracker()

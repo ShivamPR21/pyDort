@@ -49,15 +49,17 @@ def run_tracker(cfg: DictConfig) -> None:
                     temporal_overlap=0,
                     max_objects=cfg.data.max_objects,
                     target_cls=cfg.data.target_cls,
-                    distance_threshold=cfg.data.distance_threshold,
+                    detection_score_threshold=cfg.data.det_score,
                     splits=cfg.data.split,
+                    distance_threshold=cfg.data.distance_threshold,
                     img_size=cfg.data.img_shape,
                     point_cloud_size=cfg.data.pcl_quant,
                     in_global_frame=cfg.data.global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,
                     image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
-                    pcl_transform=None)
+                    pcl_transform=None,
+                    random_miss=cfg.data.random_miss)
 
     cur_log = None
     tracker = None

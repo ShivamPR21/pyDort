@@ -49,15 +49,17 @@ def run_tracker(cfg: DictConfig) -> None:
                     temporal_overlap=0,
                     max_objects=cfg.data.max_objects,
                     target_cls=cfg.data.target_cls,
-                    distance_threshold=cfg.data.distance_threshold,
+                    detection_score_threshold=cfg.data.det_score,
                     splits=cfg.data.split,
-                    img_size=tuple(cfg.data.img_shape),
+                    distance_threshold=cfg.data.distance_threshold,
+                    img_size=cfg.data.img_shape,
                     point_cloud_size=cfg.data.pcl_quant,
                     in_global_frame=cfg.data.global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,
                     image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
-                    pcl_transform=None)
+                    pcl_transform=None,
+                    random_miss=cfg.data.random_miss)
 
     appearance_model = DLA34Encoder(out_dim=cfg.am.sv_enc)
     ckpt = torch.load(wandb.restore(name=cfg.am.model_file, run_path=cfg.am.run_path, replace=True).name)

@@ -237,6 +237,24 @@ class PyDort:
         else:
             raise NotImplementedError(f'Representation update method {self.rep_update} isn\'t  implemented.')
 
+    def cm_gating(self, M, N, cost_m:np.ndarray) -> np.ndarray:
+
+        if M == 0 or N == 0:
+            return cost_m
+
+        sim = 1. - cost_m
+        t_map_ = sim < self.matching_threshold
+        sim[t_map_] = 0.
+
+        return (1. - sim)
+
+    def normalize_cm(self, M:int, N:int, cost_m:np.ndarray) -> np.ndarray:
+        if not (M == 0 or N == 0):
+            cost_m -= cost_m.min()
+            cost_m /= (abs(cost_m.max())+1e-9)
+
+        return cost_m
+
     def cost_matrix_des(self, M:int, N:int, dets:np.ndarray, trks:np.ndarray) -> np.ndarray:
         # dets -> [M, n]
         # trks -> [N, q, n]
@@ -248,9 +266,8 @@ class PyDort:
         cost_m /= np.sum(self.trks_center_w)
 
         # Normalize
-        if not (M == 0 or N == 0):
-            cost_m -= cost_m.min()
-            cost_m /= (abs(cost_m.max())+1e-9)
+        cost_m = self.normalize_cm(M, N, cost_m)
+        cost_m = self.cm_gating(M, N, cost_m)
 
         return cost_m
 
@@ -262,9 +279,8 @@ class PyDort:
                 cost_m[m, n] = get_distance(dets[m, :], trks[n, :], distance)
 
         # Normalize
-        if not (M == 0 or N == 0):
-            cost_m -= cost_m.min()
-            cost_m /= (abs(cost_m.max())+1e-9)
+        cost_m = self.normalize_cm(M, N, cost_m)
+        cost_m = self.cm_gating(M, N, cost_m)
 
         return cost_m
 

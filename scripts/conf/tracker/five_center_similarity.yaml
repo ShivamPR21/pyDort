@@ -1,6 +1,6 @@
 max_age: 2
 min_hits: 1
-matching_threshold: 0.6
+matching_threshold: [0.6, 0.5, 0.6]
 sem_cfg: "../conf/conf_sem.json"
 rep_update: "similarity"
 Q: 5

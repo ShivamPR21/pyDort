@@ -1,0 +1,8 @@
+info: "SV DLA34 | Five Center | Dense Loss"
+
+sv_enc: 256
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/4ta4vyvp"
+model_file: "models/model_10.pth"

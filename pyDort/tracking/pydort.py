@@ -216,7 +216,7 @@ class PyDort:
         if trks_dsc is None:
             reps = np.zeros((self.q, dets_dsc.shape[0]), dtype=np.float32)
             reps[:, :] = dets_dsc.reshape((1, -1))
-            reps[:, :] /= (np.linalg.norm(reps, axis=-1) + 1e-9)
+            reps[:, :] /= (np.linalg.norm(reps, axis=-1, keepdims=True) + 1e-9)
             return reps
 
         dets_dsc = dets_dsc.reshape((1, -1))

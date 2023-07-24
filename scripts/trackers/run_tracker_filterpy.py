@@ -149,8 +149,9 @@ def run_tracker(cfg: DictConfig) -> None:
 
         save_json_dict(json_fpath, tracked_labels) # type: ignore
 
-    # Evaluate and Log
-    evaluate(cfg)
+    if cfg.eval is not None:
+        # Evaluate and Log
+        evaluate(cfg)
 
 def evaluate(cfg: DictConfig):
     ## Evaluate results

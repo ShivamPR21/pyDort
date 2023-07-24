@@ -253,8 +253,8 @@ class PyDort:
         sim = 1. - cost_m
         t_map_ = sim > thresh
         sim[t_map_] *= self.fav_w
+        sim = self.normalize_cm(M, N, sim)
         cost_m = (1. - sim)
-        cost_m = self.normalize_cm(M, N, cost_m)
 
         return cost_m
 

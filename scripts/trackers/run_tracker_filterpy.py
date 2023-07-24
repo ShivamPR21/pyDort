@@ -99,7 +99,8 @@ def run_tracker(cfg: DictConfig) -> None:
                              dsc_w=cfg.tracker.dsc_w,
                              cm_fusion_w=cfg.tracker.cm_fusion_w,
                              trks_center_w=cfg.tracker.track_center_momentum,
-                             matching_threshold=cfg.tracker.matching_threshold)
+                             matching_threshold=cfg.tracker.matching_threshold,
+                             favourable_weight=cfg.tracker.fav_w)
             cur_log = log_id
 
         run.set_description(f'Log Id: {cur_log}')

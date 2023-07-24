@@ -25,7 +25,8 @@ class PyDort:
                  dsc_w: List[float] = [0.3, 0.3],
                  cm_fusion_w: List[float] = [0.5, 0.5],
                  trks_center_w: List[float] = [0.5],
-                 matching_threshold: float = 0.8) -> None:
+                 matching_threshold: float | List[float] = 0.8,
+                 favourable_weight: float = 2) -> None:
         assert(len(trks_center_w) == Q)
 
         self.max_age = max_age
@@ -44,6 +45,7 @@ class PyDort:
         self.a_t = alpha_thresh
         self.b_t = beta_thresh
         self.matching_threshold = matching_threshold
+        self.fav_w = favourable_weight
         self.config_file = open(config_file)
         self.conf : Dict[str, Union[Dict, Any]] = json.load(self.config_file)
 
@@ -135,7 +137,8 @@ class PyDort:
         else:
             cost_matrix = cm_state
 
-        matched, unmatched_dets, unmatched_trks =  self.solve(M, N, cost_matrix) # type: ignore
+        thresh = self.matching_threshold[2] if isinstance(self.matching_threshold, list) else self.matching_threshold
+        matched, unmatched_dets, unmatched_trks =  self.solve(M, N, cost_matrix, thresh) # type: ignore
 
         print(f'Matchings -> {len(matched)}::{len(unmatched_dets)}::{len(unmatched_trks)}')
 
@@ -237,16 +240,18 @@ class PyDort:
         else:
             raise NotImplementedError(f'Representation update method {self.rep_update} isn\'t  implemented.')
 
-    def cm_gating(self, M, N, cost_m:np.ndarray) -> np.ndarray:
+    def cm_gating(self, M, N, cost_m:np.ndarray, thresh: float) -> np.ndarray:
 
         if M == 0 or N == 0:
             return cost_m
 
         sim = 1. - cost_m
-        t_map_ = sim < self.matching_threshold
-        sim[t_map_] = 0.
+        t_map_ = sim < thresh
+        sim[t_map_] *= self.fav_w
+        cost_m = (1. - sim)
+        cost_m = self.normalize_cm(M, N, cost_m)
 
-        return (1. - sim)
+        return cost_m
 
     def normalize_cm(self, M:int, N:int, cost_m:np.ndarray) -> np.ndarray:
         if not (M == 0 or N == 0):
@@ -267,7 +272,8 @@ class PyDort:
 
         # Normalize
         cost_m = self.normalize_cm(M, N, cost_m)
-        cost_m = self.cm_gating(M, N, cost_m)
+        thresh = self.matching_threshold[1] if isinstance(self.matching_threshold, list) else self.matching_threshold
+        cost_m = self.cm_gating(M, N, cost_m, thresh)
 
         return cost_m
 
@@ -280,7 +286,8 @@ class PyDort:
 
         # Normalize
         cost_m = self.normalize_cm(M, N, cost_m)
-        cost_m = self.cm_gating(M, N, cost_m)
+        thresh = self.matching_threshold[0] if isinstance(self.matching_threshold, list) else self.matching_threshold
+        cost_m = self.cm_gating(M, N, cost_m, thresh)
 
         return cost_m
 
@@ -293,7 +300,7 @@ class PyDort:
                 n_removed += 1
         return n_removed
 
-    def solve(self, M:int, N:int, cm:np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def solve(self, M:int, N:int, cm:np.ndarray, thresh:float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         assert(cm.ndim == 2)
 
         # Handle zero detections or tracks
@@ -322,7 +329,7 @@ class PyDort:
         #filter out matched with low IOU
         matches = []
         for m, n in zip(row_idxs, col_idxs, strict=True):
-            if(sim_matrix[m, n]<self.matching_threshold):
+            if(sim_matrix[m, n]<thresh):
                 unmatched_detections.append(m)
                 unmatched_trackers.append(n)
             else:

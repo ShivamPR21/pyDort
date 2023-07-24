@@ -2,6 +2,7 @@ import json
 from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
 import numpy as np
+from omegaconf import ListConfig
 from scipy.optimize import linear_sum_assignment
 
 from pyDort.sem.data_association import get_distance
@@ -25,7 +26,7 @@ class PyDort:
                  dsc_w: List[float] = [0.3, 0.3],
                  cm_fusion_w: List[float] = [0.5, 0.5],
                  trks_center_w: List[float] = [0.5],
-                 matching_threshold: float | List[float] = 0.8,
+                 matching_threshold: float | List[float] | ListConfig = 0.8,
                  favourable_weight: float = 2) -> None:
         assert(len(trks_center_w) == Q)
 
@@ -45,6 +46,10 @@ class PyDort:
         self.a_t = alpha_thresh
         self.b_t = beta_thresh
         self.matching_threshold = matching_threshold
+
+        if isinstance(self.matching_threshold, ListConfig):
+            self.matching_threshold = list(self.matching_threshold)
+
         self.fav_w = favourable_weight
         self.config_file = open(config_file)
         self.conf : Dict[str, Union[Dict, Any]] = json.load(self.config_file)

@@ -80,7 +80,7 @@ def run_tracker(cfg: DictConfig) -> None:
                                mm_xo=cfg.am.mm_xo,
                                mmc_features=cfg.am.mmc_features)
     ckpt = torch.load(wandb.restore(name=cfg.am.model_file, run_path=cfg.am.run_path, replace=True).name)
-    appearance_model.load_state_dict(ckpt["enc"])
+    print(f'{appearance_model.load_state_dict(ckpt["enc"]) = }')
     model_device = cfg.am.device
 
     appearance_model = appearance_model.to(model_device)

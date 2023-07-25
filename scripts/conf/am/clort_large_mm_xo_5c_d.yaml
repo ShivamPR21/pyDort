@@ -1,0 +1,17 @@
+info: "MM-XO Large | Five Center | Dense Loss"
+
+mv_backbone: "large"
+
+mv_features: 256
+mv_xo: True
+pc_features: 256
+bbox_aug: True
+pc_xo: True
+mm_features: 256
+mm_xo: True
+mmc_features: null
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/lf0qrann"
+model_file: "models/model_10.pth"

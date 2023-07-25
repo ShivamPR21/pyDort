@@ -1,0 +1,17 @@
+info: "MM Small | Five Center | Dense Loss"
+
+mv_backbone: "small"
+
+mv_features: 256
+mv_xo: False
+pc_features: 256
+bbox_aug: True
+pc_xo: False
+mm_features: 256
+mm_xo: False
+mmc_features: null
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/p4mb0uut"
+model_file: "models/model.pth"

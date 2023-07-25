@@ -1,0 +1,16 @@
+info: "CLORT Model"
+
+mv_backbone: null
+mv_features: null
+mv_xo: null
+pc_features: null
+bbox_aug: null
+pc_xo: null
+mm_features: null
+mm_xo: null
+mmc_features: null
+
+device: "cuda"
+
+run_path: null
+model_file: null

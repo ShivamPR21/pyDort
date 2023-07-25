@@ -1,0 +1,17 @@
+info: "MV-XO Medium | Five Center | Dense Loss"
+
+mv_backbone: "medium"
+
+mv_features: 256
+mv_xo: True
+pc_features: null
+bbox_aug: False
+pc_xo: False
+mm_features: null
+mm_xo: False
+mmc_features: null
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/4jcn0c0r"
+model_file: "models/model_10.pth"

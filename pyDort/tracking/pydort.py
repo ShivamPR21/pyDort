@@ -236,7 +236,7 @@ class PyDort:
                 if q == 0:
                     reps[q, :] = (1. - alpha[q]) * trks_dsc[q, :] + alpha[q] * dets_dsc[0, :]
                 else:
-                    sf = max(min(q+1, 3), 2)
+                    sf = 2
                     beta = np.clip(trks_dsc[q-1, :] @ trks_dsc[q, :], self.b_t[0], self.b_t[1])
                     reps[q, :] = (1. - (alpha[q] + beta)/sf) * trks_dsc[q, :] + (beta/sf) * trks_dsc[q-1, :] + (alpha[q]/sf) * dets_dsc[0, :]
 

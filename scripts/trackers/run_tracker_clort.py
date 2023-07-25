@@ -19,6 +19,7 @@ from pyDort.helpers import (
     save_json_dict,
 )
 from pyDort.sem.filterpy_ukf import FilterPyUKF
+from pyDort.sem.instance import InstanceSEM
 from pyDort.tracking.eval import eval_tracks
 from pyDort.tracking.pydort import PyDort
 from pyDort.tracking.se2 import SE2
@@ -43,6 +44,14 @@ def run_tracker(cfg: DictConfig) -> None:
     )
 
     uuid_gen = UUIDGeneration()
+
+    sem_module = None
+    if cfg.tracker.sem == "ukf":
+        sem_module = FilterPyUKF
+    elif cfg.tracker.sem == "instance":
+        sem_module = InstanceSEM
+    else:
+        raise NotImplementedError
 
     dataset = ArgoCL(cfg.data.data_dir,
                     temporal_horizon=1,
@@ -105,7 +114,7 @@ def run_tracker(cfg: DictConfig) -> None:
             tracker = PyDort(max_age=cfg.tracker.max_age,
                              dt=1.,
                              min_hits=cfg.tracker.min_hits,
-                             sem=FilterPyUKF,
+                             sem=sem_module,
                              config_file=cfg.tracker.sem_cfg,
                              rep_update=cfg.tracker.rep_update,
                              Q=cfg.tracker.Q,

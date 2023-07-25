@@ -63,12 +63,15 @@ def run_tracker(cfg: DictConfig) -> None:
                     distance_threshold=cfg.data.distance_threshold,
                     img_size=tuple(cfg.data.img_shape),
                     point_cloud_size=list(cfg.data.pcl_quant),
+                    point_cloud_scaling=1.,
                     in_global_frame=cfg.data.global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,
                     image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
                     pcl_transform=None,
                     random_miss=cfg.data.random_miss)
+
+    assert(dataset.pc_scale == 1.)
 
     appearance_model = CLModel(mv_backbone=cfg.am.mv_backbone,
                                mv_features=cfg.am.mv_features,
@@ -136,7 +139,8 @@ def run_tracker(cfg: DictConfig) -> None:
             imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
             bboxs = bboxs.to(model_device) if isinstance(bboxs, torch.Tensor) else bboxs
 
-            mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls, pcls_sz, imgs, imgs_sz, bboxs, frame_sz)
+            pcl_scale = float(cfg.data.pcl_scale)
+            mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls/pcl_scale, pcls_sz, imgs, imgs_sz, bboxs/pcl_scale, frame_sz)
 
             encoding = None
             if mmc_e is not None:
@@ -156,6 +160,8 @@ def run_tracker(cfg: DictConfig) -> None:
             encoding = np.empty((0, 1))
             bboxs = np.empty((0, 8, 3))
 
+        assert(not np.any(np.isnan(encoding)))
+        assert(not np.any(np.isnan(bboxs)))
 
         # assert(encoding is not None)
         assert(tracker is not None)

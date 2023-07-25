@@ -63,12 +63,15 @@ def run_tracker(cfg: DictConfig) -> None:
                     distance_threshold=cfg.data.distance_threshold,
                     img_size=tuple(cfg.data.img_shape),
                     point_cloud_size=list(cfg.data.pcl_quant),
+                    point_cloud_scaling=1.,
                     in_global_frame=cfg.data.global_frame,
                     pivot_to_first_frame=cfg.data.pivot_to_first_frame,
                     image=cfg.data.imgs, pcl=cfg.data.pcl, bbox=cfg.data.bbox_aug,
                     vision_transform=None, # type: ignore
                     pcl_transform=None,
                     random_miss=cfg.data.random_miss)
+
+    assert(dataset.pc_scale == 1.)
 
     cur_log = None
     tracker = None

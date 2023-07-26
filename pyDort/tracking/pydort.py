@@ -268,12 +268,12 @@ class PyDort:
     def cost_matrix_des(self, M:int, N:int, dets:np.ndarray, trks:np.ndarray) -> np.ndarray:
         # dets -> [M, n]
         # trks -> [N, q, n]
-        cost_m = np.zeros((M, N), dtype=np.float32)
+        cost_m = np.zeros((self.q, M, N), dtype=np.float32)
 
         for q in range(self.q):
-            cost_m -= (dets @ trks[:, q, :].T) * self.trks_center_w[q]
+            cost_m[q, :, :] = (dets @ trks[:, q, :].T)
 
-        cost_m /= np.sum(self.trks_center_w)
+        cost_m = cost_m.max(axis=0)
 
         # Normalize
         cost_m = self.normalize_cm(M, N, cost_m)

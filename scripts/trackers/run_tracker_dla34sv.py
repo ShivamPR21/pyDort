@@ -96,7 +96,7 @@ def run_tracker(cfg: DictConfig) -> None:
         city_SE3_egovehicle = SE3(R.T, t)
         current_lidar_timestamp = np.asanyarray(frame_log['timestamp'], dtype=np.uint64) # type: ignore
 
-        pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz = data
+        pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz, _ = data
 
         # if (len(track_idxs) == 0):
         #     continue

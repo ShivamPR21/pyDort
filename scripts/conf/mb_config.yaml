@@ -1,0 +1,5 @@
+defaults:
+  - am: clort
+  - data: argo
+  - tracker: single_center_similarity
+  - wb: clort_mb_eval

@@ -65,7 +65,7 @@ def run_tracker(cfg: DictConfig) -> None:
 
         run.set_description(f'Log Id: {cur_log}')
 
-        pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz = data
+        pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz, _ = data
 
         if (len(track_idxs) == 0):
             continue

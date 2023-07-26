@@ -104,10 +104,7 @@ def run_tracker(cfg: DictConfig) -> None:
         city_SE3_egovehicle = SE3(R.T, t)
         current_lidar_timestamp = np.asanyarray(frame_log['timestamp'], dtype=np.uint64) # type: ignore
 
-        pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz = data
-
-        # if (len(track_idxs) == 0):
-        #     continue
+        pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, cls_idxs, frame_sz, pivot = data
 
         track_cls = (np.array(dataset.obj_cls, dtype=str)[cls_idxs]).tolist()
 
@@ -134,13 +131,15 @@ def run_tracker(cfg: DictConfig) -> None:
         run.set_description(f'Log Id: {cur_log}')
 
         encoding = None
+        pivot = 0 if pivot is None else torch.from_numpy(pivot)
         if (len(track_idxs) != 0):
             pcls = pcls.to(model_device) if isinstance(pcls, torch.Tensor) else pcls
             imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
             bboxs = bboxs.to(model_device) if isinstance(bboxs, torch.Tensor) else bboxs
+            pivot = pivot.to(model_device) if isinstance(pivot, torch.Tensor) else pivot
 
             pcl_scale = float(cfg.data.pcl_scale)
-            mv_e, pc_e, mm_e, mmc_e = appearance_model(pcls/pcl_scale, pcls_sz, imgs, imgs_sz, bboxs/pcl_scale, frame_sz)
+            mv_e, pc_e, mm_e, mmc_e = appearance_model((pcls  - pivot)/pcl_scale, pcls_sz, imgs, imgs_sz, (bboxs - pivot)/pcl_scale, frame_sz)
 
             encoding = None
             if mmc_e is not None:

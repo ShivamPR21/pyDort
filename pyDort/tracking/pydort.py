@@ -271,9 +271,9 @@ class PyDort:
         cost_m = np.zeros((self.q, M, N), dtype=np.float32)
 
         for q in range(self.q):
-            cost_m[q, :, :] = (dets @ trks[:, q, :].T)
+            cost_m[q, :, :] = -(dets @ trks[:, q, :].T)
 
-        cost_m = cost_m.max(axis=0)
+        cost_m = cost_m.min(axis=0)
 
         # Normalize
         cost_m = self.normalize_cm(M, N, cost_m)

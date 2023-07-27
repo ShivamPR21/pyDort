@@ -122,8 +122,6 @@ def run_tracker(cfg: DictConfig) -> None:
 
         assert(not torch.any(torch.isnan(encoding)))
         assert(not torch.any(torch.isnan(bboxs)))
-        assert(not np.any(np.isnan(encoding)))
-        assert(not np.any(np.isnan(bboxs)))
 
         # assert(encoding is not None)
         assert(tracker is not None)

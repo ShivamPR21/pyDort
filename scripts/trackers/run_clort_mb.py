@@ -18,7 +18,7 @@ from pyDort.helpers import flatten_cfg
 def run_tracker(cfg: DictConfig) -> None:
     wandb.login()
 
-    run = wandb.init(
+    wandb_run = wandb.init(
         project=cfg.wb.project,
 
         config=flatten_cfg(cfg)
@@ -53,7 +53,7 @@ def run_tracker(cfg: DictConfig) -> None:
                                mm_features=cfg.am.mm_features,
                                mm_xo=cfg.am.mm_xo,
                                mmc_features=cfg.am.mmc_features,
-                               mode = 'infer')
+                               mode = 'train')
 
     ckpt = torch.load(wandb.restore(name=cfg.am.model_file, run_path=cfg.am.run_path, replace=True).name)
     print(f'{appearance_model.load_state_dict(ckpt["enc"]) = }')
@@ -124,11 +124,11 @@ def run_tracker(cfg: DictConfig) -> None:
         # assert(encoding is not None)
         assert(tracker is not None)
 
-        infer_acc = evaluate(memory=tracker_infer.get_reprs(cur_log_track_idxs),
+        infer_acc, infer_sim_diff = evaluate(memory=tracker_infer.get_reprs(cur_log_track_idxs),
                             repr=encoding,
                             track_idxs=local_track_idxs,
                             topk=[1, 2, 3, 4, 5])
-        acc = evaluate(memory=tracker.get_reprs(cur_log_track_idxs),
+        acc, sim_diff = evaluate(memory=tracker.get_reprs(cur_log_track_idxs),
                         repr=encoding,
                         track_idxs=local_track_idxs,
                         topk=[1, 2, 3, 4, 5])
@@ -138,11 +138,14 @@ def run_tracker(cfg: DictConfig) -> None:
 
         df = {"Idx": i}
         df.update({f'Accuracy% (Inference Memory Bank) : Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], infer_acc, strict=True)})
-        df.update({f'XE_acc_Top_{k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], acc, strict=True)})
+        df.update({f'Similarity Difference (Inference Memory Bank) : Top {k}': sim_*100. for k, sim_ in zip([1, 2, 3, 4, 5], infer_sim_diff, strict=True)})
+
+        df.update({f'Accuracy% (Training Memory Bank) Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], acc, strict=True)})
+        df.update({f'Similarity Difference (Training Memory Bank) Top {k}': sim_*100. for k, sim_ in zip([1, 2, 3, 4, 5], sim_diff, strict=True)})
         wandb.log(df)
         # print(f'{infer_acc = } \n {acc = }')
 
-    tracker_store_path = os.path.join(run.dir, 'tracker.pth')
+    tracker_store_path = os.path.join(wandb_run.dir, 'tracker.pth')
     torch.save({"mb": tracker.state_dict(),
                 "mb_infer": tracker_infer.state_dict()}, tracker_store_path)
 
@@ -170,11 +173,17 @@ def evaluate(memory: torch.Tensor, repr: torch.Tensor,
     target = torch.zeros((n, n_tracks), dtype=torch.long).scatter(1, track_idxs, 1)
 
     ret = []
+    sim_diff = []
+
     for k in topk:
         correct = target * torch.zeros_like(target).scatter(1, pred[:, :k], 1)
+        correct_map = torch.tensor(correct, dtype=torch.bool)
+
+        sim_diff.append((sim[correct_map].mean() - sim[~correct_map].mean()).item()/2.)
+
         ret.append((correct.sum()/target.sum()).item())
 
-    return ret
+    return ret, sim_diff
 
 def get_relative_index(source: List[int], target: List[int]) -> List[int]:
     rel_idx = []

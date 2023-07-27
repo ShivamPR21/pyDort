@@ -110,19 +110,18 @@ def run_tracker(cfg: DictConfig) -> None:
                 encoding = mmc_e
             elif mm_e is not None:
                 encoding = mm_e
-            elif pc_e is not None:
-                encoding = pc_e
             elif mv_e is not None:
                 encoding = mv_e
             else:
                 raise NotImplementedError("Encoder resolution failed.")
 
-            encoding = encoding.detach().cpu().numpy() # go to cpu for encoding
+            encoding = encoding.detach().cpu() # go to cpu for encoding
+            bboxs = bboxs.detach().cpu() # go to cpu for encoding
         else:
             continue
 
-        bboxs = bboxs.detach().cpu().numpy()
-
+        assert(not torch.any(torch.isnan(encoding)))
+        assert(not torch.any(torch.isnan(bboxs)))
         assert(not np.any(np.isnan(encoding)))
         assert(not np.any(np.isnan(bboxs)))
 

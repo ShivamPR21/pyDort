@@ -121,6 +121,8 @@ def run_tracker(cfg: DictConfig) -> None:
         else:
             continue
 
+        bboxs = bboxs.detach().cpu().numpy()
+
         assert(not np.any(np.isnan(encoding)))
         assert(not np.any(np.isnan(bboxs)))
 

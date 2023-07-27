@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Tuple
 
 import hydra
 import numpy as np
@@ -13,6 +13,22 @@ from tqdm import tqdm
 
 from pyDort.helpers import flatten_cfg
 
+
+class RunningMean:
+
+    def __init__(self) -> None:
+        self.mean = 0.
+        self.cnt = 0.
+
+    def update(self, x:float) -> None:
+        val = 0
+
+        if self.cnt != 0:
+            val = self.mean/self.cnt
+
+        self.cnt += 1.
+
+        self.mean = (val + x)/self.cnt
 
 @hydra.main(version_base=None, config_path="../conf", config_name="mb_config")
 def run_tracker(cfg: DictConfig) -> None:
@@ -72,6 +88,12 @@ def run_tracker(cfg: DictConfig) -> None:
     tracker = MemoryBank(dataset.n_tracks, N=appearance_model.out_dim, Q = cfg.tracker.Q,
                          alpha=np.array(cfg.tracker.track_center_momentum, dtype=np.float32))
 
+    infer_acc_mean = [RunningMean() for k in range(5)]
+    infer_sim_mean = RunningMean()
+
+    acc_mean = [RunningMean() for k in range(5)]
+    sim_mean = RunningMean()
+
     for i in (run := tqdm(range(dataset.N), total=dataset.N)):
         data = dataset[i]
 
@@ -120,6 +142,7 @@ def run_tracker(cfg: DictConfig) -> None:
 
         assert(not torch.any(torch.isnan(encoding)))
         assert(not torch.any(torch.isnan(bboxs)))
+        print(f'{encoding.norm(dim=1) = }')
 
         # assert(encoding is not None)
         assert(tracker is not None)
@@ -138,12 +161,30 @@ def run_tracker(cfg: DictConfig) -> None:
 
         df = {"Idx": i}
         df.update({f'Accuracy% (Inference Memory Bank) : Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], infer_acc, strict=True)})
-        df.update({f'Similarity Difference (Inference Memory Bank) : Top {k}': sim_*100. for k, sim_ in zip([1, 2, 3, 4, 5], infer_sim_diff, strict=True)})
+        df.update({'Similarity Difference (Inference Memory Bank)': infer_sim_diff})
+        if not np.any(np.isnan([infer_sim_diff])):
+            infer_sim_mean.update(float(infer_sim_diff))
 
         df.update({f'Accuracy% (Training Memory Bank) Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], acc, strict=True)})
-        df.update({f'Similarity Difference (Training Memory Bank) Top {k}': sim_*100. for k, sim_ in zip([1, 2, 3, 4, 5], sim_diff, strict=True)})
+        df.update({'Similarity Difference (Training Memory Bank)': sim_diff})
+        if not np.any(np.isnan([sim_diff])):
+            sim_mean.update(float(sim_diff))
+
+        for k in range(5):
+            infer_acc_mean[k].update(infer_acc[k]*100.)
+            acc_mean[k].update(acc[k]*100.)
+
         wandb.log(df)
+
         # print(f'{infer_acc = } \n {acc = }')
+
+    df = {}
+    df.update({'Mean Similarity Difference (Inference Memory Bank)': infer_sim_mean.mean})
+    df.update({'Mean Similarity Difference (Training Memory Bank)': sim_mean.mean})
+
+    for k in range(5):
+        df.update({f'Mean Accuracy% (Inference Memory Bank) : Top {k+1}': infer_acc_mean[k].mean})
+        df.update({f'Mean Accuracy% (Training Memory Bank) Top {k+1}': acc_mean[k].update(acc[k])})
 
     tracker_store_path = os.path.join(wandb_run.dir, 'tracker.pth')
     torch.save({"mb": tracker.state_dict(),
@@ -153,7 +194,7 @@ def run_tracker(cfg: DictConfig) -> None:
 
 def evaluate(memory: torch.Tensor, repr: torch.Tensor,
              # trunk-ignore(ruff/B006)
-             track_idxs: torch.Tensor, topk:List[int] = [1, 2, 5]) -> float:
+             track_idxs: torch.Tensor, topk:List[int] = [1, 2, 5]) -> Tuple[List[float], float]:
     # memory [n_tracks, Q, N]
     # reprs [n, N]
 
@@ -163,23 +204,19 @@ def evaluate(memory: torch.Tensor, repr: torch.Tensor,
 
     track_idxs = track_idxs.view(-1, 1) # [n, 1]
 
-    print(f'{repr.shape = } \t {memory.shape = }')
-
     sim = memory @ repr.T # [Q, n_tracks, n]
     sim = sim.max(dim=0).values.T # [n, n_tracks]
 
     pred = torch.topk(sim, np.max(topk), dim=1, largest=True, sorted=True).indices # [n, max(topk)]
 
     target = torch.zeros((n, n_tracks), dtype=torch.long).scatter(1, track_idxs, 1)
+    target_map = (target == 1)
 
     ret = []
-    sim_diff = []
+    sim_diff = ((sim[target_map].mean() - sim[~target_map].mean())/2.).item()
 
     for k in topk:
         correct = target * torch.zeros_like(target).scatter(1, pred[:, :k], 1)
-        correct_map = torch.tensor(correct, dtype=torch.bool)
-
-        sim_diff.append((sim[correct_map].mean() - sim[~correct_map].mean()).item()/2.)
 
         ret.append((correct.sum()/target.sum()).item())
 

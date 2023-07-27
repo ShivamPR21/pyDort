@@ -21,13 +21,8 @@ class RunningMean:
         self.cnt = 0.
 
     def update(self, x:float) -> None:
-        val = 0
-
-        if self.cnt != 0:
-            val = self.mean/self.cnt
-
+        val = self.mean*self.cnt
         self.cnt += 1.
-
         self.mean = (val + x)/self.cnt
 
 @hydra.main(version_base=None, config_path="../conf", config_name="mb_config")

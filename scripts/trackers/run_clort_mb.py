@@ -52,7 +52,8 @@ def run_tracker(cfg: DictConfig) -> None:
                                pc_xo=cfg.am.pc_xo,
                                mm_features=cfg.am.mm_features,
                                mm_xo=cfg.am.mm_xo,
-                               mmc_features=cfg.am.mmc_features)
+                               mmc_features=cfg.am.mmc_features,
+                               mode = 'infer')
 
     ckpt = torch.load(wandb.restore(name=cfg.am.model_file, run_path=cfg.am.run_path, replace=True).name)
     print(f'{appearance_model.load_state_dict(ckpt["enc"]) = }')
@@ -64,8 +65,6 @@ def run_tracker(cfg: DictConfig) -> None:
     cur_log = None
     tracker = None
 
-    cls = torch.nn.CrossEntropyLoss()
-
     assert(appearance_model.out_dim is not None)
     tracker_infer = MemoryBankInfer(dataset.n_tracks, N=appearance_model.out_dim,
                                     alpha_threshold=cfg.tracker.alpha_t,
@@ -76,7 +75,7 @@ def run_tracker(cfg: DictConfig) -> None:
     for i in (run := tqdm(range(dataset.N), total=dataset.N)):
         data = dataset[i]
 
-        rd_i, frame_idx = dataset.get_reduced_index(i) # type: ignore
+        rd_i, _ = dataset.get_reduced_index(i) # type: ignore
         log_id : str = dataset.log_files[rd_i].name # type: ignore
 
         pcls, pcls_sz, imgs, imgs_sz, bboxs, track_idxs, _cls_idxs, frame_sz, pivot = data
@@ -128,21 +127,22 @@ def run_tracker(cfg: DictConfig) -> None:
         # assert(encoding is not None)
         assert(tracker is not None)
 
-        infer_loss = evaluate(criterion=cls,
-                            memory=tracker_infer.get_reprs(cur_log_track_idxs),
+        infer_acc = evaluate(memory=tracker_infer.get_reprs(cur_log_track_idxs),
                             repr=encoding,
-                            track_idxs=local_track_idxs)
-        loss = evaluate(criterion=cls,
-                            memory=tracker.get_reprs(cur_log_track_idxs),
-                            repr=encoding,
-                            track_idxs=local_track_idxs)
+                            track_idxs=local_track_idxs,
+                            topk=[1, 2, 3, 4, 5])
+        acc = evaluate(memory=tracker.get_reprs(cur_log_track_idxs),
+                        repr=encoding,
+                        track_idxs=local_track_idxs,
+                        topk=[1, 2, 3, 4, 5])
 
         tracker_infer.update(encoding, track_idxs)
         tracker.update(encoding, track_idxs)
 
-        wandb.log({"Idx": i,
-                   "XE_loss_infer": infer_loss,
-                   "XE_loss": loss})
+        df = {"Idx": i}
+        df.update({f'Accuracy% (Inference Memory Bank) : Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], infer_acc, strict=True)})
+        df.update({f'XE_acc_Top_{k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], acc, strict=True)})
+        wandb.log(df)
 
     tracker_store_path = os.path.join(run.dir, 'tracker.pth')
     torch.save({"mb": tracker.state_dict(),
@@ -150,14 +150,30 @@ def run_tracker(cfg: DictConfig) -> None:
 
     wandb.save(tracker_store_path)
 
-def evaluate(criterion, memory: torch.Tensor, repr: torch.Tensor, track_idxs: torch.Tensor) -> float:
+def evaluate(memory: torch.Tensor, repr: torch.Tensor,
+             # trunk-ignore(ruff/B006)
+             track_idxs: torch.Tensor, topk:List[int] = [1, 2, 5]) -> float:
     # memory [n_tracks, Q, N]
     # reprs [n, N]
-    _, Q, _ = memory.size()
-    sim = repr @ memory.permute(2, 0, 1) # [n, n_tracks, Q]
-    track_idxs = track_idxs.view(-1, 1).repeat(1, Q)
 
-    return criterion(sim, track_idxs).item()
+    n, N = repr.size()
+    n_tracks, Q, _ = memory.size()
+
+    track_idxs = track_idxs.view(-1, 1) # [n, 1]
+
+    sim = repr @ memory.permute(2, 0, 1) # [n, n_tracks, Q]
+    sim = sim.max(dim=2).values # [n, n_tracks]
+
+    pred = torch.topk(sim, np.max(topk), dim=1, largest=True, sorted=True).indices # [n, max(topk)]
+
+    target = torch.zeros((n, n_tracks), dtype=torch.long).scatter(1, track_idxs, 1)
+
+    ret = []
+    for k in topk:
+        correct = target * torch.zeros_like(target).scatter(1, pred[:, :k], 1)
+        ret.append((correct.sum()/target.sum()).item())
+
+    return ret
 
 def get_relative_index(source: List[int], target: List[int]) -> List[int]:
     rel_idx = []

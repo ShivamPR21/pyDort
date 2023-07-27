@@ -16,13 +16,13 @@ from pyDort.helpers import flatten_cfg
 
 @hydra.main(version_base=None, config_path="../conf", config_name="mb_config")
 def run_tracker(cfg: DictConfig) -> None:
-    # wandb.login()
+    wandb.login()
 
-    # run = wandb.init(
-    #     project=cfg.wb.project,
+    run = wandb.init(
+        project=cfg.wb.project,
 
-    #     config=flatten_cfg(cfg)
-    # )
+        config=flatten_cfg(cfg)
+    )
 
     dataset = ArgoCL(cfg.data.data_dir,
                     temporal_horizon=1,
@@ -138,17 +138,17 @@ def run_tracker(cfg: DictConfig) -> None:
         tracker_infer.update(encoding, track_idxs)
         tracker.update(encoding, track_idxs)
 
-        # df = {"Idx": i}
-        # df.update({f'Accuracy% (Inference Memory Bank) : Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], infer_acc, strict=True)})
-        # df.update({f'XE_acc_Top_{k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], acc, strict=True)})
-        # wandb.log(df)
-        print(f'{infer_acc = } \n {acc = }')
+        df = {"Idx": i}
+        df.update({f'Accuracy% (Inference Memory Bank) : Top {k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], infer_acc, strict=True)})
+        df.update({f'XE_acc_Top_{k}': acc_*100. for k, acc_ in zip([1, 2, 3, 4, 5], acc, strict=True)})
+        wandb.log(df)
+        # print(f'{infer_acc = } \n {acc = }')
 
-    # tracker_store_path = os.path.join(run.dir, 'tracker.pth')
-    # torch.save({"mb": tracker.state_dict(),
-    #             "mb_infer": tracker_infer.state_dict()}, tracker_store_path)
+    tracker_store_path = os.path.join(run.dir, 'tracker.pth')
+    torch.save({"mb": tracker.state_dict(),
+                "mb_infer": tracker_infer.state_dict()}, tracker_store_path)
 
-    # wandb.save(tracker_store_path)
+    wandb.save(tracker_store_path)
 
 def evaluate(memory: torch.Tensor, repr: torch.Tensor,
              # trunk-ignore(ruff/B006)
@@ -158,13 +158,14 @@ def evaluate(memory: torch.Tensor, repr: torch.Tensor,
 
     n, N = repr.size()
     n_tracks, Q, _ = memory.size()
+    memory = memory.permute(1, 0, 2) # [Q, n_tracks, N]
 
     track_idxs = track_idxs.view(-1, 1) # [n, 1]
 
-    print(f'{repr.shape = } \t {memory.permute(2, 0, 1).shape = }')
+    print(f'{repr.shape = } \t {memory.shape = }')
 
-    sim = repr @ memory.permute(2, 0, 1) # [n, n_tracks, Q]
-    sim = sim.max(dim=2).values # [n, n_tracks]
+    sim = memory @ repr.T # [Q, n_tracks, n]
+    sim = sim.max(dim=0).values.T # [n, n_tracks]
 
     pred = torch.topk(sim, np.max(topk), dim=1, largest=True, sorted=True).indices # [n, max(topk)]
 

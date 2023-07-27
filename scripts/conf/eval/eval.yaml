@@ -1,5 +1,5 @@
 eval: True
-gt_path: "/home/lidar-workstation/CLORT/pyDortResults/ground_truth/val"
+gt_path: "/home/lidar-workstation/CLORT/pyDortResultsJSR/ground_truth/val"
 d_min: 0
 d_max: 100
 out_file: "eval.csv"

@@ -82,6 +82,7 @@ def run_tracker(cfg: DictConfig) -> None:
         cur_log_track_idxs = list(dataset.tracks[log_id].values())
         local_track_idxs = torch.tensor(get_relative_index(track_idxs.tolist(), cur_log_track_idxs), dtype=torch.long)
         cur_log_track_idxs = torch.tensor(cur_log_track_idxs, dtype=torch.long)
+        track_idxs = torch.from_numpy(track_idxs)
 
         if (len(track_idxs) == 0):
             continue

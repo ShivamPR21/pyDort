@@ -186,6 +186,8 @@ def run_tracker(cfg: DictConfig) -> None:
         df.update({f'Mean Accuracy% (Inference Memory Bank) : Top {k+1}': infer_acc_mean[k].mean})
         df.update({f'Mean Accuracy% (Training Memory Bank) Top {k+1}': acc_mean[k].update(acc[k])})
 
+    wandb.log(df)
+
     tracker_store_path = os.path.join(wandb_run.dir, 'tracker.pth')
     torch.save({"mb": tracker.state_dict(),
                 "mb_infer": tracker_infer.state_dict()}, tracker_store_path)

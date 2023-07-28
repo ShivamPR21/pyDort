@@ -1,0 +1,17 @@
+info: "MM Small | Five Center | Element Loss"
+
+mv_backbone: "small"
+
+mv_features: 256
+mv_xo: False
+pc_features: 256
+bbox_aug: True
+pc_xo: False
+mm_features: 256
+mm_xo: False
+mmc_features: null
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/iy0wdx5n"
+model_file: "models/model.pth"

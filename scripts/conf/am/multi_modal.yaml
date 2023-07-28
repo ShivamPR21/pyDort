@@ -1,0 +1,6 @@
+info: "MultiModal simple backbone"
+
+img_model: null
+pcl_model: null
+
+device: "cuda"

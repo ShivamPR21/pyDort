@@ -140,7 +140,7 @@ def run_tracker(cfg: DictConfig) -> None:
             pivot = pivot.to(model_device) if isinstance(pivot, torch.Tensor) else pivot
 
             pcl_scale = float(cfg.data.pcl_scale)
-            mv_e, pc_e, mm_e, mmc_e = appearance_model((pcls  - pivot)/pcl_scale, pcls_sz, imgs, imgs_sz, (bboxs - pivot)/pcl_scale, frame_sz)
+            mv_e, pc_e, mm_e, mmc_e = appearance_model((pcls - pivot)/pcl_scale, pcls_sz, imgs, imgs_sz, (bboxs - pivot)/pcl_scale, frame_sz)
 
             encoding = None
             if mmc_e is not None:

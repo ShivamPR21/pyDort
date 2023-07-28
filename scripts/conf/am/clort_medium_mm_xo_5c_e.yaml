@@ -1,0 +1,17 @@
+info: "MM-XO Medium | Five Center | Element Loss"
+
+mv_backbone: "medium"
+
+mv_features: 256
+mv_xo: True
+pc_features: 256
+bbox_aug: True
+pc_xo: True
+mm_features: 256
+mm_xo: True
+mmc_features: null
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/aiyql1z9"
+model_file: "models/model.pth"

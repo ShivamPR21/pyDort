@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 # from .pooling import Pooling
@@ -26,7 +25,8 @@ class PointNet(torch.nn.Module):
         self.emb_dims = emb_dims
         self.use_bn = use_bn
         self.global_feat = global_feat
-        if not self.global_feat: self.pooling = Pooling('max')
+        if not self.global_feat:
+            self.pooling = Pooling('max')
 
         self.layers = self.create_structure()
 
@@ -74,7 +74,8 @@ class PointNet(torch.nn.Module):
         output = input_data
         for idx, layer in enumerate(self.layers):
             output = layer(output)
-            if idx == 1 and not self.global_feat: point_feature = output
+            if idx == 1 and not self.global_feat:
+                point_feature = output
 
         if self.global_feat:
             return output
@@ -85,6 +86,7 @@ class PointNet(torch.nn.Module):
 
 
 class PointNetClassifier(nn.Module):
+    # trunk-ignore(ruff/B008)
     def __init__(self, feature_model=PointNet(), num_classes=40):
         super(PointNetClassifier, self).__init__()
         self.feature_model = feature_model

@@ -1,24 +1,20 @@
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, Optional, Type
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from ..simple import SimpleArgoverseDetectionRepresentation
 from .dgcnn import DGCNN_cls
 from .pointnets import PointNetClassifier
 
 
-class PointCloudRepresentation(SimpleArgoverseDetectionRepresentation):
+class PointCloudRepresentation(nn.Module):
 
     def __init__(self,
                  model:str = "pointnet",
-                 gpu:bool = False,
-                 chunk_size:int = 1,
                  n_points: int = 20,
                  k:int = 10) -> None:
+        super().__init__()
         assert(k < n_points)
         self.avail_models: Dict[str, Dict[str, Any]] = \
                                         {
@@ -28,22 +24,23 @@ class PointCloudRepresentation(SimpleArgoverseDetectionRepresentation):
                                                       "weights": f'{Path(__file__).parent.resolve()}/ckpts/DGCNN_model.cls.1024.t7',
                                                       "args": {"k": k,
                                                                "emb_dims": 1024,
-                                                               "dropout": 0.5,
-                                                               "gpu": gpu}},
+                                                               "dropout": 0.5}},
                                         "dgcnn2048": {"cls": DGCNN_cls,
                                                       "weights": f'{Path(__file__).parent.resolve()}/ckpts/DGCNN_model.cls.2048.t7',
                                                       "args": {"k": k,
                                                                "emb_dims": 1024,
-                                                               "dropout": 0.5,
-                                                               "gpu": gpu}}
+                                                               "dropout": 0.5}}
                                         }
         assert (model in self.avail_models)
 
         self.model: Optional[Type[nn.Module]] = None
 
+        self.out_dim = None
+
         if model == "pointnet":
             self.model = self.avail_models[model]["cls"]()
             self.model.load_state_dict(torch.load(self.avail_models[model]["weights"]))
+            self.out_dim = 128
         else:
             cls = self.avail_models[model]["cls"]
             args = self.avail_models[model]["args"]
@@ -51,12 +48,15 @@ class PointCloudRepresentation(SimpleArgoverseDetectionRepresentation):
             self.model = nn.parallel.DataParallel(self.model)
             self.model.load_state_dict(torch.load(self.avail_models[model]["weights"]))
             self.model = self.model.module
-
-        self.device = torch.device("cuda") if torch.cuda.is_available() and gpu else torch.device("cpu")
-
-        self.model.to(self.device)
-        self.model.eval()
+            self.out_dim = 512
 
         self.n_ch = 3
-        self.chunk_size = chunk_size
         self.n_points = n_points
+
+    def forward(self, pcl: torch.Tensor) -> torch.Tensor:
+        # pcl -> [B, c, n_pts]
+
+        enc = self.model(pcl)
+        enc = enc/(enc.norm(dim = -1, keepdim=True) + 1e-9)
+
+        return enc

@@ -62,7 +62,6 @@ def run_tracker(cfg: DictConfig) -> None:
     appearance_model.eval()
 
     cur_log = None
-    tracker = None
 
     print(f'{appearance_model.im_out_dim = }')
     print(f'{appearance_model.pc_out_dim = }')
@@ -116,10 +115,10 @@ def run_tracker(cfg: DictConfig) -> None:
                 mv_e, pc_e = appearance_model(imgs, imgs_sz, (pcls)/pcl_scale)
 
                 if mv_e is not None:
-                    encoding_1 = mv_e.detach().cpu().numpy() # go to cpu for encoding
+                    encoding_1 = mv_e.detach().cpu() # go to cpu for encoding
 
                 if pc_e is not None:
-                    encoding_2 = pc_e.detach().cpu().numpy() # go to cpu for encoding
+                    encoding_2 = pc_e.detach().cpu() # go to cpu for encoding
 
                 bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
         else:
@@ -127,10 +126,12 @@ def run_tracker(cfg: DictConfig) -> None:
             bboxs = np.empty((0, 8, 3))
 
         if encoding_1 is not None:
-            assert(not np.any(np.isnan(encoding_1)))
+            assert(not torch.any(torch.isnan(encoding_1)))
+            print(f'{encoding_1.shape = }')
 
         if encoding_2 is not None:
-            assert(not np.any(np.isnan(encoding_2)))
+            assert(not torch.any(torch.isnan(encoding_2)))
+            print(f'{encoding_2.shape = }')
 
         assert(not np.any(np.isnan(bboxs)))
 

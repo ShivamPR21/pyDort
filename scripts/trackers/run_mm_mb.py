@@ -134,9 +134,6 @@ def run_tracker(cfg: DictConfig) -> None:
 
         assert(not np.any(np.isnan(bboxs)))
 
-        # assert(encoding is not None)
-        assert(tracker is not None)
-
         infer_acc, infer_sim_diff = evaluate(memory=[tracker_infer_1.get_reprs(cur_log_track_idxs) if tracker_infer_1 is not None else None,
                                                      tracker_infer_2.get_reprs(cur_log_track_idxs) if tracker_infer_2 is not None else None],
                             repr=[encoding_1 if encoding_1 is not None else None,

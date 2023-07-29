@@ -220,7 +220,7 @@ def evaluate(memory: List[torch.Tensor], repr: List[torch.Tensor],
 
     sim = None
     if sim_1 is not None and sim_2 is not None:
-        sim = sim_1 + sim_2
+        sim = (sim_1 + sim_2)/2.
     elif sim_1 is not None:
         sim = sim_1
     elif sim_2 is not None:

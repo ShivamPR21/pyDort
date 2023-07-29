@@ -71,7 +71,7 @@ def run_tracker(cfg: DictConfig) -> None:
 
     assert(dataset.pc_scale == 1.)
 
-    appearance_model = MultiModalEncoder(cfg.am.im_model, cfg.am.pc_model)
+    appearance_model = MultiModalEncoder(cfg.am.img_model, cfg.am.pcl_model)
     model_device = cfg.am.device
     appearance_model = appearance_model.to(model_device)
     appearance_model.eval()

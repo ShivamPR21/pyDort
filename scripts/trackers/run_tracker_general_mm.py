@@ -119,21 +119,22 @@ def run_tracker(cfg: DictConfig) -> None:
 
         encoding_1, encoding_2 = None, None
         if (len(track_idxs) != 0):
-            pcls = pcls.to(model_device)
-            pcls = pcls.view(-1, np.unique(pcls_sz)[0], 3).transpose(1, 2)
+            with torch.no_grad():
+                pcls = pcls.to(model_device)
+                pcls = pcls.view(-1, np.unique(pcls_sz)[0], 3).transpose(1, 2)
 
-            imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
+                imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
 
-            pcl_scale = float(cfg.data.pcl_scale)
-            mv_e, pc_e = appearance_model(imgs, imgs_sz, (pcls)/pcl_scale)
+                pcl_scale = float(cfg.data.pcl_scale)
+                mv_e, pc_e = appearance_model(imgs, imgs_sz, (pcls)/pcl_scale)
 
-            if mv_e is not None:
-                encoding_1 = mv_e.detach().cpu().numpy() # go to cpu for encoding
+                if mv_e is not None:
+                    encoding_1 = mv_e.detach().cpu().numpy() # go to cpu for encoding
 
-            if pc_e is not None:
-                encoding_2 = pc_e.detach().cpu().numpy() # go to cpu for encoding
+                if pc_e is not None:
+                    encoding_2 = pc_e.detach().cpu().numpy() # go to cpu for encoding
 
-            bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
+                bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
         else:
             encoding_1, encoding_2 = np.empty((0, 1)), np.empty((0, 1))
             bboxs = np.empty((0, 8, 3))

@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import wandb
 from clort.data import ArgoCL
-from clort.model import CLModel
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
@@ -17,13 +16,7 @@ from pyDort.helpers import (
     read_json_file,
     save_json_dict,
 )
-from pyDort.representation.image_models import (
-    DetectionRepresentation,
-    ImageContrastiveRepresentation,
-    ReIdRepresentation,
-    ResnetImageRepresentation,
-)
-from pyDort.representation.point_cloud_models import PointCloudRepresentation
+from pyDort.representation import MultiModalEncoder
 from pyDort.sem.filterpy_ukf import FilterPyUKF
 from pyDort.sem.instance import InstanceSEM
 from pyDort.tracking.eval import eval_tracks
@@ -38,7 +31,7 @@ from pyDort.tracking.transform_utils import (
 )
 
 
-@hydra.main(version_base=None, config_path="../conf", config_name="clort_config")
+@hydra.main(version_base=None, config_path="../conf", config_name="mm_config")
 def run_tracker(cfg: DictConfig) -> None:
     wandb.login()
 
@@ -78,13 +71,8 @@ def run_tracker(cfg: DictConfig) -> None:
 
     assert(dataset.pc_scale == 1.)
 
-    im_model = None
-    pcl_model = None
-
-    if cfg.am.im_model in []:
-
+    appearance_model = MultiModalEncoder(cfg.am.im_model, cfg.am.pc_model)
     model_device = cfg.am.device
-
     appearance_model = appearance_model.to(model_device)
     appearance_model.eval()
 
@@ -129,41 +117,38 @@ def run_tracker(cfg: DictConfig) -> None:
 
         run.set_description(f'Log Id: {cur_log}')
 
-        encoding = None
-        pivot = 0 if pivot is None else torch.from_numpy(pivot)
+        encoding_1, encoding_2 = None, None
         if (len(track_idxs) != 0):
-            pcls = pcls.to(model_device) if isinstance(pcls, torch.Tensor) else pcls
+            pcls = pcls.to(model_device)
+            pcls = pcls.view(-1, np.unique(pcls_sz)[0], 3).transpose(1, 2)
+
             imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
-            bboxs = bboxs.to(model_device) if isinstance(bboxs, torch.Tensor) else bboxs
-            pivot = pivot.to(model_device) if isinstance(pivot, torch.Tensor) else pivot
 
             pcl_scale = float(cfg.data.pcl_scale)
-            mv_e, pc_e, mm_e, mmc_e = appearance_model((pcls  - pivot)/pcl_scale, pcls_sz, imgs, imgs_sz, (bboxs - pivot)/pcl_scale, frame_sz)
+            mv_e, pc_e = appearance_model(imgs, imgs_sz, (pcls)/pcl_scale)
 
-            encoding = None
-            if mmc_e is not None:
-                encoding = mmc_e
-            elif mm_e is not None:
-                encoding = mm_e
-            elif pc_e is not None:
-                encoding = pc_e
-            elif mv_e is not None:
-                encoding = mv_e
-            else:
-                raise NotImplementedError("Encoder resolution failed.")
+            if mv_e is not None:
+                encoding_1 = mv_e.detach().cpu().numpy() # go to cpu for encoding
 
-            encoding = encoding.detach().cpu().numpy() # go to cpu for encoding
+            if pc_e is not None:
+                encoding_2 = pc_e.detach().cpu().numpy() # go to cpu for encoding
+
             bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
         else:
-            encoding = np.empty((0, 1))
+            encoding_1, encoding_2 = np.empty((0, 1)), np.empty((0, 1))
             bboxs = np.empty((0, 8, 3))
 
-        assert(not np.any(np.isnan(encoding)))
+        if encoding_1 is not None:
+            assert(not np.any(np.isnan(encoding_1)))
+
+        if encoding_2 is not None:
+            assert(not np.any(np.isnan(encoding_2)))
+
         assert(not np.any(np.isnan(bboxs)))
 
         # assert(encoding is not None)
         assert(tracker is not None)
-        dets_w_info = tracker.update(bboxs, [encoding, None], track_cls)
+        dets_w_info = tracker.update(bboxs, [encoding_1, encoding_2], track_cls)
 
         tracked_labels = []
         for _i, det in enumerate(dets_w_info):

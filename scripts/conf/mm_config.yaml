@@ -1,0 +1,6 @@
+defaults:
+  - am: multi_modal
+  - data: argo_mm_simple
+  - tracker: single_center_similarity
+  - wb: clort_jsr_eval
+  - eval: eval

@@ -64,7 +64,9 @@ def run_tracker(cfg: DictConfig) -> None:
     cur_log = None
     tracker = None
 
-    assert(appearance_model.out_dim is not None)
+    print(f'{appearance_model.im_out_dim = }')
+    print(f'{appearance_model.pc_out_dim = }')
+
     tracker_infer_1 = MemoryBankInfer(dataset.n_tracks, N=appearance_model.im_out_dim,
                                     alpha_threshold=cfg.tracker.alpha_t,
                               beta_threshold=cfg.tracker.beta_t, Q = cfg.tracker.Q) if appearance_model.im_out_dim is not None else None

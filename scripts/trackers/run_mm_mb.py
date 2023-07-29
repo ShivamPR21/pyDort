@@ -199,9 +199,13 @@ def evaluate(memory: List[torch.Tensor], repr: List[torch.Tensor],
     # memory [n_tracks, Q, N]
     # reprs [n, N]
 
-    n, N = repr.size()
-    n_tracks, Q, _ = memory.size()
-    memory = memory.permute(1, 0, 2) # [Q, n_tracks, N]
+    n, N = repr[0].size() if repr[0] is not None else repr[1].size()
+    n_tracks, Q, _ = memory[0].size() if memory[0] is not None else memory[1].size()
+
+    if memory[0] is not None:
+        memory[0] = memory[0].permute(1, 0, 2) # [Q, n_tracks, N]
+    if memory[1] is not None:
+        memory[1] = memory[1].permute(1, 0, 2) # [Q, n_tracks, N]
 
     track_idxs = track_idxs.view(-1, 1) # [n, 1]
 
@@ -222,6 +226,8 @@ def evaluate(memory: List[torch.Tensor], repr: List[torch.Tensor],
         sim = sim_2
     else:
         raise NotImplementedError
+
+    assert(sim is not None)
 
     pred = torch.topk(sim, np.max(topk), dim=1, largest=True, sorted=True).indices # [n, max(topk)]
 

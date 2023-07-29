@@ -155,7 +155,7 @@ def run_tracker(cfg: DictConfig) -> None:
                     raise NotImplementedError("Encoder resolution failed.")
 
                 encoding = encoding.detach().cpu().numpy() # go to cpu for encoding
-            bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
+                bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
         else:
             encoding = np.empty((0, 1))
             bboxs = np.empty((0, 8, 3))

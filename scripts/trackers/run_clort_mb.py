@@ -112,26 +112,26 @@ def run_tracker(cfg: DictConfig) -> None:
         encoding = None
         pivot = 0 if pivot is None else torch.from_numpy(pivot)
         if (len(track_idxs) != 0):
-            pcls = pcls.to(model_device) if isinstance(pcls, torch.Tensor) else pcls
-            imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
-            bboxs = bboxs.to(model_device) if isinstance(bboxs, torch.Tensor) else bboxs
-            pivot = pivot.to(model_device) if isinstance(pivot, torch.Tensor) else pivot
+            with torch.no_grad():
+                pcls = pcls.to(model_device) if isinstance(pcls, torch.Tensor) else pcls
+                imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
+                bboxs = bboxs.to(model_device) if isinstance(bboxs, torch.Tensor) else bboxs
+                pivot = pivot.to(model_device) if isinstance(pivot, torch.Tensor) else pivot
 
-            pcl_scale = float(cfg.data.pcl_scale)
-            mv_e, pc_e, mm_e, mmc_e = appearance_model((pcls - pivot)/pcl_scale, pcls_sz, imgs, imgs_sz, (bboxs - pivot)/pcl_scale, frame_sz)
+                pcl_scale = float(cfg.data.pcl_scale)
+                mv_e, pc_e, mm_e, mmc_e = appearance_model((pcls - pivot)/pcl_scale, pcls_sz, imgs, imgs_sz, (bboxs - pivot)/pcl_scale, frame_sz)
 
-            encoding = None
-            if mmc_e is not None:
-                encoding = mmc_e
-            elif mm_e is not None:
-                encoding = mm_e
-            elif mv_e is not None:
-                encoding = mv_e
-            else:
-                raise NotImplementedError("Encoder resolution failed.")
+                if mmc_e is not None:
+                    encoding = mmc_e
+                elif mm_e is not None:
+                    encoding = mm_e
+                elif mv_e is not None:
+                    encoding = mv_e
+                else:
+                    raise NotImplementedError("Encoder resolution failed.")
 
-            encoding = encoding.detach().cpu() # go to cpu for encoding
-            bboxs = bboxs.detach().cpu() # go to cpu for encoding
+                encoding = encoding.detach().cpu() # go to cpu for encoding
+                bboxs = bboxs.detach().cpu() # go to cpu for encoding
         else:
             continue
 

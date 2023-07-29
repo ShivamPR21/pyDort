@@ -102,10 +102,11 @@ def run_tracker(cfg: DictConfig) -> None:
         encoding = None
         pivot = 0 if pivot is None else torch.from_numpy(pivot)
         if (len(track_idxs) != 0):
-            imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
+            with torch.no_grad():
+                imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
 
-            encoding = appearance_model(imgs, imgs_sz)
-            encoding = encoding.detach().cpu() # go to cpu for encoding
+                encoding = appearance_model(imgs, imgs_sz)
+                encoding = encoding.detach().cpu() # go to cpu for encoding
         else:
             continue
 

@@ -127,11 +127,12 @@ def run_tracker(cfg: DictConfig) -> None:
 
         encoding = None
         if (len(track_idxs) != 0):
-            imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
+            with torch.no_grad():
+                imgs = imgs.to(model_device) if isinstance(imgs, torch.Tensor) else imgs
 
-            encoding = appearance_model(imgs, imgs_sz)
-            encoding = encoding.detach().cpu().numpy() # go to cpu for encoding
-            bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
+                encoding = appearance_model(imgs, imgs_sz)
+                encoding = encoding.detach().cpu().numpy() # go to cpu for encoding
+                bboxs = bboxs.detach().cpu().numpy() # go to numpy for bounding boxes
         else:
             encoding = np.empty((0, 1))
             bboxs = np.empty((0, 8, 3))

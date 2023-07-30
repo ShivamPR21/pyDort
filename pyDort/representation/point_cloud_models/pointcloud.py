@@ -39,14 +39,14 @@ class PointCloudRepresentation(nn.Module):
 
         if model == "pointnet":
             self.model = self.avail_models[model]["cls"]()
-            self.model.load_state_dict(torch.load(self.avail_models[model]["weights"]))
+            print(f'{self.model.load_state_dict(torch.load(self.avail_models[model]["weights"]), strict=False) = }')
             self.out_dim = 128
         else:
             cls = self.avail_models[model]["cls"]
             args = self.avail_models[model]["args"]
             self.model = cls(args)
             self.model = nn.parallel.DataParallel(self.model)
-            self.model.load_state_dict(torch.load(self.avail_models[model]["weights"]))
+            print(f'{self.model.load_state_dict(torch.load(self.avail_models[model]["weights"]), strict=False) = }')
             self.model = self.model.module
             self.out_dim = 512
 

@@ -33,7 +33,7 @@ class ResnetSimCLRInference(nn.Module):
         self.weigths = {"resnet18": f'{Path(__file__).parent.resolve()}/chkpts/resnet18_cifar10_cl.tar',
                         "resnet50": f'{Path(__file__).parent.resolve()}/chkpts/resnet50_stl10_cl.pth.tar'}
         self.model = ResNetSimCLR(base_model)
-        self.model.load_state_dict(torch.load(self.weigths[base_model], map_location="cuda:0")["state_dict"])
+        print(f'{self.model.load_state_dict(torch.load(self.weigths[base_model])["state_dict"], strict=False) = }')
 
         self.model.layer4 = nn.Identity()
         self.model.backbone.fc = nn.Identity()

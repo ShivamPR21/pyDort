@@ -31,8 +31,9 @@ class ResnetSimCLRInference(nn.Module):
     def __init__(self, base_model = "resnet18") -> None:
         super().__init__()
         self.weigths = {"resnet18": f'{Path(__file__).parent.resolve()}/chkpts/resnet18_cifar10_cl.tar',
+                        "resnet50-stl": f'{Path(__file__).parent.resolve()}/chkpts/resnet50_stl10_cl.pth.tar',
                         "resnet50": f'{Path(__file__).parent.resolve()}/chkpts/resnet50_stl10_cl.pth.tar'}
-        self.model = ResNetSimCLR(base_model)
+        self.model = ResNetSimCLR(base_model.split("-")[0])
         print(f'{self.model.load_state_dict(torch.load(self.weigths[base_model], map_location="cuda:0")["state_dict"], strict=False) = }')
 
         self.model.layer4 = nn.Identity()

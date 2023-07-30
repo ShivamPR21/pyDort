@@ -28,6 +28,7 @@ class ReIdRepresentation(nn.Module):
 
 
         _cfg = self.avail_models[model]
+        self.out_dim = _cfg['out_dim']
 
         out_path = os.path.join(self.cache_dir, _cfg['cached_file'])
         if not os.path.exists(out_path):

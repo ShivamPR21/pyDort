@@ -1,0 +1,17 @@
+info: "MV-XO DLA34 | Five Center | Element Loss"
+
+mv_backbone: "dla"
+
+mv_features: 256
+mv_xo: True
+pc_features: null
+bbox_aug: False
+pc_xo: False
+mm_features: null
+mm_xo: False
+mmc_features: null
+
+device: "cuda"
+
+run_path: "shivampr21/CLORTJSR/4pwfqm40"
+model_file: "models/model.pth"
